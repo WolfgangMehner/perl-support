@@ -1,0 +1,117 @@
+
+== LIST: POSIX_CharClasses == list ==
+  'alnum',
+  'alpha',
+  'ascii',
+  'blank',
+  'cntrl',
+  'digit',
+  'graph',
+  'lower',
+  'print',
+  'punct',
+  'space',
+  'upper',
+  'word',
+  'xdigit',
+== ENDLIST ==
+
+== Regex.POSIX classes == expandmenu, insert, sc:p, map:xpc ==
+|PickList( 'POSIX char. classes', 'POSIX_CharClasses' )|
+[:|PICK|:]<CURSOR>
+== ENDTEMPLATE ==
+
+== LIST: UnicodeProperties == hash ==
+  'Letter'                 : 'L',
+  'Lowercase_Letter'       : 'Ll',
+  'Uppercase_Letter'       : 'Lu',
+  'Titlecase_Letter'       : 'Lt',
+  'Modifier_Letter'        : 'Lm',
+  'Other_Letter'           : 'Lo',
+  'Mark'                   : 'M',
+  'Non_Spacing_Mark'       : 'Mn',
+  'Spacing_Combining_Mark' : 'M',
+  'Enclosing_Mark'         : 'Me',
+  'Separator'              : 'Z',
+  'Space_Separator'        : 'Zs',
+  'Line_Separator'         : 'Zl',
+  'Paragraph_Separator'    : 'Zp',
+  'Symbol'                 : 'S',
+  'Math_Symbol'            : 'Sm',
+  'Currency_Symbol'        : 'Sc',
+  'Modifier_Symbol'        : 'Sk',
+  'Other_Symbol'           : 'So',
+  'Number'                 : 'N',
+  'Decimal_Digit_Number'   : 'Nd',
+  'Letter_Number'          : 'Nl',
+  'Other_Number'           : 'No',
+  'Punctuation'            : 'P',
+  'Dash_Punctuation'       : 'Pd',
+  'Open_Punctuation'       : 'Ps',
+  'Close_Punctuation'      : 'Pe',
+  'Initial_Punctuation'    : 'Pi',
+  'Final_Punctuation'      : 'Pf',
+  'Connector_Punctuation'  : 'Pc',
+  'Other_Punctuation'      : 'Po',
+  'Other'                  : 'C',
+  'Control'                : 'Cc',
+  'Format'                 : 'Cf',
+  'Private_Use'            : 'Co',
+  'Unassigned'             : 'Cn',
+== ENDLIST ==
+
+== Regex.Unicode Property == expandmenu, expandright:value, insert, sc:u, map:xup ==
+|PickList( 'Unicode Property', 'UnicodeProperties' )|
+\p{|KEY|}<CURSOR>
+== ENDTEMPLATE ==
+
+
+== LIST: ExtendedRegex == hash ==
+  'comment'                  : '(?#<SPLIT><CURSOR>)',
+  'cluster only parenthesis' : '(?-imsx:<SPLIT><CURSOR>)',
+  'named capture'            : '(?<<SPLIT><CURSOR>>)',
+  'pattern modifier'         : '<SPLIT>(?<CURSOR>-imsx)',
+  'execute code'             : '(?{<SPLIT><CURSOR>})',
+  'match regex from code'    : '(??{<SPLIT><CURSOR>})',
+  'match-if-then'            : '(?(<SPLIT><CURSOR>))',
+  'match-if-then-else'       : '(?(<SPLIT><CURSOR>)|)',
+  'lookahead succeeds'       : '(?=<SPLIT><CURSOR>)',
+  'lookahead fails'          : '(?!<SPLIT><CURSOR>)',
+  'lookbehind succeeds'      : '(?<=<SPLIT><CURSOR>)',
+  'lookbehind fails'         : '(?<!<SPLIT><CURSOR>)',
+  'prohibit backtracking'    : '(?><SPLIT><CURSOR>)',
+== ENDLIST ==
+
+== Regex.extended Regex == expandmenu, expandright:value-notags, insert, visual, sc:e, map:xex ==
+|PickList( 'Regex, extended', 'ExtendedRegex' )|
+|VALUE|
+== ENDTEMPLATE ==
+
+§§== Regex.grouping == insert ==
+§§(<SPLIT><CURSOR>)
+§§== Regex.alternation == insert ==
+§§(<SPLIT><CURSOR>|)
+§§== Regex.char class == insert ==
+§§[<SPLIT><CURSOR>]
+§§== Regex.count == insert ==
+§§{<SPLIT><CURSOR>,}
+§§== ENDTEMPLATE ==
+
+== LIST: Metasymbols == hash ==
+  'word boundary'         : '\b<CURSOR>',
+  'digit'                 : '\d<CURSOR>',
+  'whitespace'            : '\s<CURSOR>',
+  'word character'        : '\w<CURSOR>',
+  'match property'        : '\p{<SPLIT><CURSOR>}',
+  'non-word boundary'     : '\B<CURSOR>',
+  'non-digit'             : '\D<CURSOR>',
+  'non-whitespace'        : '\S<CURSOR>',
+  'non-word character'    : '\W<CURSOR>',
+  'do not match property' : '\P{<SPLIT><CURSOR>}',
+== ENDLIST ==
+
+== Regex.metasymbols == expandmenu, expandright:value-notags, insert, visual, sc:m, map:xms ==
+|PickList( 'Metasymbols', 'Metasymbols' )|
+|VALUE|
+== ENDTEMPLATE ==
+

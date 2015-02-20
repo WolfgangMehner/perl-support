@@ -1,0 +1,141 @@
+
+== LIST: basics == hash ==
+  '$BASETIME<CURSOR>'        : '$^T',
+  '$PERL_VERSION<CURSOR>'    : '$^V',
+  '$EXECUTABLE_NAME<CURSOR>' : '$^X',
+  '$PROGRAM_NAME<CURSOR>'    : '$0',
+  '$OSNAME<CURSOR>'          : '$^O',
+  '$SYSTEM_FD_MAX<CURSOR>'   : '$^F',
+  '$ENV{<CURSOR>}'           : '',
+  '$INC{<CURSOR>}'           : '',
+  '$SIG{<CURSOR>}'           : '',
+== ENDLIST ==
+
+== Special Variables.basics == expandmenu, expandleft:key-notags, expandright:value, insert, sc:b, map:vb ==
+|PickList( 'basics', 'basics' )|
+|KEY|
+== ENDTEMPLATE ==
+
+== LIST: errors == hash ==
+  '$CHILD_ERROR<CURSOR>'       : '$?',
+  '$ERRNO{<CURSOR>}'           : '$!',
+  '$EVAL_ERROR<CURSOR>'        : '$@',
+  '$EXTENDED_OS_ERROR<CURSOR>' : '$^E',
+  '$WARNING<CURSOR>'           : '$^W',
+== ENDLIST ==
+
+== Special Variables.errors == expandmenu, expandleft:key-notags, expandright:value, insert, sc:e, map:ve ==
+|PickList( 'errors', 'errors' )|
+|KEY|
+== ENDTEMPLATE ==
+
+== LIST: filehandle == hash ==
+  '$AUTOFLUSH'                   : '$|',
+  '$FORMAT_LINES_LEFT'           : '$-',
+  '$FORMAT_LINES_PER_PAGE'       : '$=',
+  '$FORMAT_LINE_BREAK_CHARACTER' : '$:',
+  '$FORMAT_NAME'                 : '$~',
+  '$FORMAT_PAGE_NUMBER'          : '$%',
+  '$FORMAT_TOP_NAME'             : '$^',
+  '$OUTPUT_AUTOFLUSH'            : '$|',
+== ENDLIST ==
+
+== Special Variables.filehandle == expandmenu, expandleft:key-notags, expandright:value, insert, sc:f, map:vf ==
+|PickList( 'filehandle', 'filehandle' )|
+|KEY|<CURSOR>
+== ENDTEMPLATE ==
+
+== LIST: IDs == hash ==
+  '$PID'                : '$$',
+  '$PROCESS_ID'         : '$$',
+  '$UID'                : '$<',
+  '$REAL_USER_ID'       : '$<',
+  '$EUID'               : '$>',
+  '$EFFECTIVE_USER_ID'  : '$>',
+  '$GID'                : '$(',
+  '$REAL_GROUP_ID'      : '$(',
+  '$EGID'               : '$)',
+  '$EFFECTIVE_GROUP_ID' : '$)',
+== ENDLIST ==
+
+== Special Variables.IDs == expandmenu, expandleft:key-notags, expandright:value, insert, sc:i, map:vid ==
+|PickList( 'IDs', 'IDs' )|
+|KEY|<CURSOR>
+== ENDTEMPLATE ==
+
+== LIST: IO == hash ==
+  '$ARG'                     : '$_',
+  '$INPUT_LINE_NUMBER'       : '$.',
+  '$NR'                      : '$.',
+  '$INPUT_RECORD_SEPARATOR'  : '$/',
+  '$RS'                      : '$/',
+  '$LIST_SEPARATOR'          : '$"',
+  '$OUTPUT_FIELD_SEPARATOR'  : '$,',
+  '$OFS'                     : '$,',
+  '$OUTPUT_RECORD_SEPARATOR' : '$\',
+  '$ORS'                     : '$\',
+  '$SUBSCRIPT_SEPARATOR'     : '$;',
+  '$SUBSEP'                  : '$;',
+== ENDLIST ==
+
+== Special Variables.IO == expandmenu, expandleft:key-notags, expandright:value, insert, sc:i, map:vio ==
+|PickList( 'IO', 'IO' )|
+|KEY|<CURSOR>
+== ENDTEMPLATE ==
+
+== LIST: regexp == hash ==
+  '$MATCH'                   : '$&',
+  '$POSTMATCH'               : '$''',
+  '$PREMATCH'                : '$`',
+  '$LAST_MATCH_START'        : '$-',
+  '$LAST_MATCH_END'          : '$+',
+  '$LAST_PAREN_MATCH'        : '$+',
+  '$LAST_SUBMATCH_RESULT'    : '$^N',
+  '$LAST_REGEXP_CODE_RESULT' : '$^R',
+== ENDLIST ==
+
+== Special Variables.regexp == expandmenu, expandleft:key-notags, expandright:value, insert, sc:r, map:vr ==
+|PickList( 'regexp', 'regexp' )|
+|KEY|<CURSOR>
+== ENDTEMPLATE ==
+
+== LIST: POSIX_signals == list ==
+  'ABRT',
+  'ALRM',
+  'BUS',
+  'CHLD',
+  'CONT',
+  'FPE',
+  'HUP',
+  'ILL',
+  'INT',
+  'KILL',
+  'PIPE',
+  'POLL',
+  'PROF',
+  'QUIT',
+  'SEGV',
+  'STOP',
+  'SYS',
+  'TERM',
+  'TRAP',
+  'TSTP',
+  'TTIN',
+  'TTOU',
+  'URG',
+  'USR1',
+  'USR2',
+  'VTALRM',
+  'XCPU',
+  'XFSZ',
+== ENDLIST ==
+
+== Special Variables.POSIX signals == expandmenu, insert, sc:p, map:vps ==
+|PickList( 'POSIX signals', 'POSIX_signals' )|
+|PICK|<CURSOR>
+== ENDTEMPLATE ==
+
+== Special Variables.use English == insert, sc:u, map:vue ==
+use English;<CURSOR>
+== ENDTEMPLATE ==
+

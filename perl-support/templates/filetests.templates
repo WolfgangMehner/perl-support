@@ -1,0 +1,35 @@
+
+== LIST: FileTests == hash ==
+ 'exists'                     : '-e',
+ 'has zero size'              : '-z',
+ 'has nonzero size'           : '-s',
+ 'plain file'                 : '-f',
+ 'directory'                  : '-d',
+ 'symbolic link'              : '-l',
+ 'named pipe'                 : '-p',
+ 'socket'                     : '-S',
+ 'block special file'         : '-b',
+ 'character special file'     : '-c',
+ 'readable by eff UID-GID'    : '-r',
+ 'writable by eff UID-GID'    : '-w',
+ 'executable by eff UID-GID'  : '-x',
+ 'owned by eff UID'           : '-o',
+ 'readable by real UID-GID'   : '-R',
+ 'writable by real UID-GID'   : '-W',
+ 'executable by real UID-GID' : '-X',
+ 'owned by real UID'          : '-O',
+ 'setuid bit set'             : '-u',
+ 'setgid bit set'             : '-g',
+ 'sticky bit set'             : '-k',
+ 'age since modification'     : '-M',
+ 'age since last access'      : '-A',
+ 'age since inode change'     : '-C',
+ 'text file'                  : '-T',
+ 'binary file'                : '-B',
+ 'handle opened to a tty'     : '-t',
+== ENDLIST ==
+
+== File Tests == expandmenu, expandright:value, insert, sc:f, map:ft ==
+|PickList( 'File Tests', 'FileTests' )|
+|PICK|<CURSOR>
+== ENDTEMPLATE ==

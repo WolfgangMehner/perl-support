@@ -15,8 +15,7 @@
 "                  documentation.
 "
 "  Configuration:  There are at least some personal details which should be
-"                   configured (see the files README.perlsupport and
-"                   perlsupport.txt).
+"                   configured (see the files README.md and perlsupport.txt).
 "
 "   Dependencies:  perl           pod2man
 "                  podchecker     pod2text
@@ -35,11 +34,13 @@
 "                  ddd                  (debugger frontend)
 "                  sort(1)              (rearrange profiler statistics)
 "
-"         Author:  Dr.-Ing. Fritz Mehner <mehner.fritz@fh-swf.de>
+"         Author:  Wolfgang Mehner <wolfgang-mehner@web.de>
+"                  Fritz Mehner <mehner.fritz@web.de>
 "
 "        Version:  see variable  g:Perl_PluginVersion  below
 "        Created:  09.07.2001
 "        License:  Copyright (c) 2001-2014, Fritz Mehner
+"                  Copyright (c) 2015-2016, Wolfgang Mehner
 "                  This program is free software; you can redistribute it
 "                  and/or modify it under the terms of the GNU General Public
 "                  License as published by the Free Software Foundation,
@@ -210,7 +211,7 @@ let s:Perl_PerltidyBackup			     = "no"
 call s:perl_SetGlobalVariable ( 'Perl_MapLeader', '' )
 let s:Perl_RootMenu								= '&Perl'
 "
-let s:Perl_AdditionalTemplates    = []
+let s:Perl_AdditionalTemplates    = mmtemplates#config#GetFt ( 'perl' )
 let s:Perl_UseToolbox             = 'yes'
 call s:perl_SetGlobalVariable ( 'Perl_UseTool_make',    'yes' )
 "
@@ -227,7 +228,6 @@ call s:perl_SetLocalVariable('Perl_Debugger               ')
 call s:perl_SetLocalVariable('Perl_GlobalTemplateFile     ')
 call s:perl_SetLocalVariable('Perl_LocalTemplateFile      ')
 call s:perl_SetLocalVariable('Perl_CustomTemplateFile     ')
-call s:perl_SetLocalVariable('Perl_AdditionalTemplates    ')
 call s:perl_SetLocalVariable('Perl_GuiSnippetBrowser      ')
 call s:perl_SetLocalVariable('Perl_LineEndCommColDefault  ')
 call s:perl_SetLocalVariable('Perl_LoadMenus              ')
@@ -249,7 +249,6 @@ call s:perl_SetLocalVariable('Perl_XtermDefaults          ')
 "
 "  Initialize global variables, if they do not already exist.
 "
-call s:perl_SetGlobalVariable( "Perl_MenuHeader",'yes' )
 call s:perl_SetGlobalVariable( "Perl_OutputGvim",'vim' )
 call s:perl_SetGlobalVariable( "Perl_PerlRegexSubstitution",'$~' )
 "
@@ -940,12 +939,12 @@ function! Perl_Settings ( verbose )
 		let txt .= '                    email :  "'.mmtemplates#core#ExpandText( g:Perl_Templates, '|EMAIL|'        )."\"\n"
 		let txt .= '             organization :  "'.mmtemplates#core#ExpandText( g:Perl_Templates, '|ORGANIZATION|' )."\"\n"
 		let txt .= '         copyright holder :  "'.mmtemplates#core#ExpandText( g:Perl_Templates, '|COPYRIGHT|'    )."\"\n"
-		let txt .= '         copyright holder :  "'.mmtemplates#core#ExpandText( g:Perl_Templates, '|LICENSE|'      )."\"\n"
+		let txt .= '                  license :  "'.mmtemplates#core#ExpandText( g:Perl_Templates, '|LICENSE|'      )."\"\n"
 		let txt .= '           template style :  "'.mmtemplates#core#Resource ( g:Perl_Templates, "style" )[0]."\"\n\n"
 	else
-		let txt .= "                templates :  -not loaded- \n\”"
+		let txt .= "                templates :  -not loaded-\n\n"
 	endif
-	" plug-in installation, template engine
+	" plug-in installation
 	let txt .= '      plugin installation :  '.g:Perl_Installation.' on '.sys_name."\n"
 	" toolbox
 	if s:Perl_UseToolbox == 'yes'
@@ -960,16 +959,23 @@ function! Perl_Settings ( verbose )
 	endif
 	let txt .= "\n"
 	" templates, snippets
-	let [ templist, msg ] = mmtemplates#core#Resource ( g:Perl_Templates, 'template_list' )
-	if empty ( templist )
-		let txt .= "           template files :  -no template files-\n"
-	else
+	if exists ( 'g:Perl_Templates' )
+		let [ templist, msg ] = mmtemplates#core#Resource ( g:Perl_Templates, 'template_list' )
 		let sep  = "\n"."                             "
 		let txt .=      "           template files :  "
 					\ .join ( templist, sep )."\n"
+	else
+		let txt .= "           template files :  -not loaded-\n"
 	endif
 	let txt .=
 				\  '       code snippets dir. :  '.s:Perl_CodeSnippets."\n"
+	" ----- dictionaries ------------------------
+  if !empty(g:Perl_Dictionary_File)
+		let ausgabe= &dictionary
+    let ausgabe = substitute( ausgabe, ",", ",\n                             + ", "g" )
+    let txt     = txt."       dictionary file(s) :  ".ausgabe."\n"
+  endif
+	" ----- map leader, menus, file headers -----
 	if a:verbose >= 1
 		let	txt .= "\n"
 					\ .'                mapleader :  "'.g:Perl_MapLeader."\"\n"
@@ -977,18 +983,13 @@ function! Perl_Settings ( verbose )
 					\ .'       insert file header :  "'.s:Perl_InsertFileHeader."\"\n"
 	endif
 	let txt .= "\n"
-	" ----- xterm ------------------------
+	" ----- output ------------------------------
+  let txt = txt."     current output dest. :  ".g:Perl_OutputGvim."\n"
 	if	!s:MSWIN
 		let txt = txt.'           xterm defaults :  '.s:Perl_XtermDefaults."\n"
 	endif
-	" ----- dictionaries ------------------------
-  if !empty(g:Perl_Dictionary_File)
-		let ausgabe= &dictionary
-    let ausgabe = substitute( ausgabe, ",", ",\n                          + ", "g" )
-    let txt     = txt."       dictionary file(s) :  ".ausgabe."\n"
-  endif
-  let txt = txt."    current output dest.  :  ".g:Perl_OutputGvim."\n"
-  let txt = txt."              perlcritic  :  perlcritic -severity ".s:Perl_PerlcriticSeverity
+	" ----- perlcritic --------------------------
+  let txt = txt."               perlcritic :  perlcritic -severity ".s:Perl_PerlcriticSeverity
 				\				.' ['.s:PCseverityName[s:Perl_PerlcriticSeverity].']'
 				\				."  -verbosity ".s:Perl_PerlcriticVerbosity
 				\				."  ".s:Perl_PerlcriticOptions."\n"
@@ -1003,7 +1004,7 @@ function! Perl_Settings ( verbose )
   let txt = txt."                 Ctrl-F9  :  run script                \n"
   let txt = txt."                Shift-F9  :  set command line arguments\n"
   let txt = txt."_________________________________________________________________________\n"
-  let txt = txt."  Perl-Support, Version ".g:Perl_PluginVersion." / Dr.-Ing. Fritz Mehner / mehner.fritz@fh-swf.de\n\n"
+  let txt = txt."  Perl-Support, Version ".g:Perl_PluginVersion." / Wolfgang Mehner / wolfgang-mehner@web.de\n\n"
 	"
 	if a:verbose == 2
 		split PerlSupport_Settings.txt
@@ -1348,7 +1349,7 @@ function! Perl_MakeScriptExecutable ()
 				echo 'Could not make "'.filename.'" executable!'
 			else
 				" reload the file, otherwise the message will not be visible
-				if ! &l:modified
+				if &autoread && ! &l:modified
 					silent exe "edit"
 				endif
 				" confirmation for the user
@@ -1370,7 +1371,7 @@ function! Perl_MakeScriptExecutable ()
 				echo 'Could not make "'.filename.'" not executable!'
 			else
 				" reload the file, otherwise the message will not be visible
-				if ! &l:modified
+				if &autoread && ! &l:modified
 					silent exe "edit"
 				endif
 				" confirmation for the user
@@ -2007,8 +2008,6 @@ function! s:Perl_RereadTemplates ()
 		call mmtemplates#core#Resource ( g:Perl_Templates, 'set', 'property', 'Templates::Mapleader', g:Perl_MapLeader )
 	endif
 	"
-	" map: choose style
-	call mmtemplates#core#Resource ( g:Perl_Templates, 'set', 'property', 'Templates::ChooseStyle::Map', 'nts' )
 	" some metainfo
 	call mmtemplates#core#Resource ( g:Perl_Templates, 'set', 'property', 'Templates::Wizard::PluginName',   'Perl' )
 	call mmtemplates#core#Resource ( g:Perl_Templates, 'set', 'property', 'Templates::Wizard::FiletypeName', 'Perl' )
@@ -2016,7 +2015,6 @@ function! s:Perl_RereadTemplates ()
 	call mmtemplates#core#Resource ( g:Perl_Templates, 'set', 'property', 'Templates::Wizard::FileCustomWithPersonal', g:Perl_PluginDir.'/perl-support/rc/custom_with_personal.templates' )
 	call mmtemplates#core#Resource ( g:Perl_Templates, 'set', 'property', 'Templates::Wizard::FilePersonal',           g:Perl_PluginDir.'/perl-support/rc/personal.templates' )
 	call mmtemplates#core#Resource ( g:Perl_Templates, 'set', 'property', 'Templates::Wizard::CustomFileVariable',     'g:Perl_CustomTemplateFile' )
-	call mmtemplates#core#Resource ( g:Perl_Templates, 'set', 'property', 'Templates::Wizard::AddFileListVariable',    'g:Perl_AdditionalTemplates' )
 	"
 	" maps: special operations
 	call mmtemplates#core#Resource ( g:Perl_Templates, 'set', 'property', 'Templates::RereadTemplates::Map', 'ntr' )
@@ -2029,35 +2027,35 @@ function! s:Perl_RereadTemplates ()
 	"-------------------------------------------------------------------------------
 	" load template library
 	"-------------------------------------------------------------------------------
-	"
+
 	" global templates (global installation only)
 	if g:Perl_Installation == 'system'
 		call mmtemplates#core#ReadTemplates ( g:Perl_Templates, 'load', s:Perl_GlobalTemplateFile,
 					\ 'name', 'global', 'map', 'ntg' )
 	endif
-	"
+
 	" local templates (optional for global installation)
-	if g:Perl_Installation == 'global'
+	if g:Perl_Installation == 'system'
 		call mmtemplates#core#ReadTemplates ( g:Perl_Templates, 'load', s:Perl_LocalTemplateFile,
 					\ 'name', 'local', 'map', 'ntl', 'optional', 'hidden' )
 	else
 		call mmtemplates#core#ReadTemplates ( g:Perl_Templates, 'load', s:Perl_LocalTemplateFile,
 					\ 'name', 'local', 'map', 'ntl' )
 	endif
-	"
-	" custom templates (optional, existence of file checked by template engine)
-	call mmtemplates#core#ReadTemplates ( g:Perl_Templates, 'load', s:Perl_CustomTemplateFile,
-				\ 'name', 'custom', 'map', 'ntc', 'optional' )
-	"
+
 	" additional templates (optional)
 	if ! empty ( s:Perl_AdditionalTemplates )
 		call mmtemplates#core#AddCustomTemplateFiles ( g:Perl_Templates, s:Perl_AdditionalTemplates, 'g:Perl_AdditionalTemplates' )
 	endif
-	"
+
 	" personal templates (shared across template libraries) (optional, existence of file checked by template engine)
 	call mmtemplates#core#ReadTemplates ( g:Perl_Templates, 'personalization',
 				\ 'name', 'personal', 'map', 'ntp' )
-	"
+
+	" custom templates (optional, existence of file checked by template engine)
+	call mmtemplates#core#ReadTemplates ( g:Perl_Templates, 'load', s:Perl_CustomTemplateFile,
+				\ 'name', 'custom', 'map', 'ntc', 'optional' )
+
 	"-------------------------------------------------------------------------------
 	" further setup
 	"-------------------------------------------------------------------------------
@@ -2153,16 +2151,6 @@ function! Perl_ModuleListFold (lnum)
 endfunction    " ----------  end of function Perl_ModuleListFold  ----------
 "
 "===  FUNCTION  ================================================================
-"          NAME:  Perl_MenuTitle     {{{1
-"   DESCRIPTION:  display warning
-"    PARAMETERS:  -
-"       RETURNS:
-"===============================================================================
-function! Perl_MenuTitle ()
-		echohl WarningMsg | echo "This is a menu header." | echohl None
-endfunction    " ----------  end of function Perl_MenuTitle  ----------
-"
-"===  FUNCTION  ================================================================
 "          NAME:  Perl_InitMenus     {{{1
 "   DESCRIPTION:  initialize the hardcoded menu items
 "    PARAMETERS:  -
@@ -2193,7 +2181,7 @@ function! s:Perl_InitMenus ()
 	call mmtemplates#core#CreateMenus ( 'g:Perl_Templates', s:Perl_RootMenu, 'sub_menu', '&Profiling', 'priority', 700 )
 	call mmtemplates#core#CreateMenus ( 'g:Perl_Templates', s:Perl_RootMenu, 'sub_menu', '&Run'      , 'priority', 800 )
 	if s:Perl_UseToolbox == 'yes' && mmtoolbox#tools#Property ( s:Perl_Toolbox, 'empty-menu' ) == 0
-		call mmtemplates#core#CreateMenus ( 'g:Perl_Templates', s:Perl_RootMenu, 'sub_menu', '&Tool Box', 'priority', 900 )
+		call mmtemplates#core#CreateMenus ( 'g:Perl_Templates', s:Perl_RootMenu, 'sub_menu', '&Tool\ Box', 'priority', 900 )
 	endif
 	call mmtemplates#core#CreateMenus ( 'g:Perl_Templates', s:Perl_RootMenu, 'sub_menu', '&Help'     , 'priority', 1000 )
 	"
@@ -2277,63 +2265,61 @@ function! s:Perl_InitMenus ()
   "----- Menu : Run                             {{{2
   "===============================================================================================
 	"
-  "   run the script from the local directory
-  "   ( the one which is being edited; other versions may exist elsewhere ! )
-  "
 	let	ahead	= 'amenu <silent> '.s:Perl_RootMenu.'.&Run.'
 	let	vhead	= 'vmenu <silent> '.s:Perl_RootMenu.'.&Run.'
-	"
+
+	" ----- run, syntax check -----
   exe ahead.'update,\ &run\ script<Tab>'.esc_mapl.'rr\ \ <C-F9>         :call Perl_Run()<CR>'
   exe ahead.'update,\ check\ &syntax<Tab>'.esc_mapl.'rs\ \ <A-F9>       :call Perl_SyntaxCheck()<CR>'
   exe 'amenu '.s:Perl_RootMenu.'.&Run.cmd\.\ line\ &arg\.<Tab>'.esc_mapl.'ra\ \ <S-F9>  :PerlScriptArguments<Space>'
   exe 'amenu .'s:Perl_RootMenu.'.&Run.perl\ s&witches<Tab>'.esc_mapl.'rw                :PerlSwitches<Space>'
-  "
-  " set execution rights for user only ( user may be root ! )
+
+  " ----- set execution rights for user only ( user may be root ! ) -----
   if !s:MSWIN
     exe ahead.'make\ script\ &exe\./not\ exec\.<Tab>'.esc_mapl.'re              :call Perl_MakeScriptExecutable()<CR>'
   endif
   exe ahead.'start\ &debugger<Tab>'.esc_mapl.'rd\ \ <F9>                :call Perl_Debugger()<CR>'
-	"
+
+	" ----- module list -----
   exe ahead.'-SEP2-                     :'
   exe ahead.'show\ &installed\ Perl\ modules<Tab>'.esc_mapl.'ri  :call Perl_perldoc_show_module_list()<CR>'
   exe ahead.'&generate\ Perl\ module\ list<Tab>'.esc_mapl.'rg    :call Perl_perldoc_generate_module_list()<CR><CR>'
-  "
+
+	" ----- perltidy -----
   exe ahead.'-SEP4-                     :'
   exe ahead.'run\ perltid&y<Tab>'.esc_mapl.'ry                        :call Perl_Perltidy("n")<CR>'
   exe vhead.'run\ perltid&y<Tab>'.esc_mapl.'ry                   <C-C>:call Perl_Perltidy("v")<CR>'
-	"
-	"
+
+	" ----- perlcritic -----
   exe ahead.'-SEP3-                     :'
   exe ahead.'run\ perl&critic<Tab>'.esc_mapl.'rpc                     :call Perl_Perlcritic()<CR>'
-  "
-  if g:Perl_MenuHeader == "yes"
-    exe ahead.'perlcritic\ severity<Tab>'.esc_mapl.'rpcs.severity     :call Perl_MenuTitle()<CR>'
-    exe ahead.'perlcritic\ severity<Tab>'.esc_mapl.'rpcs.-Sep5-       :'
-  endif
+
+  " ----- submenu : perlcritic severity -----
+	call mmtemplates#core#CreateMenus ( 'g:Perl_Templates', s:Perl_RootMenu, 'sub_menu', 'Run.perl&critic\ severity' )
 
   let levelnumber = 1
   for level in s:PCseverityName[1:]
     exe ahead.'perlcritic\ severity<Tab>'.esc_mapl.'rpcs.&'.level.'<Tab>(='.levelnumber.')    :call Perl_GetPerlcriticSeverity("'.level.'")<CR>'
     let levelnumber = levelnumber+1
   endfor
-  "
-  if g:Perl_MenuHeader == "yes"
-    exe ahead.'perlcritic\ &verbosity<Tab>'.esc_mapl.'rpcv.verbosity     :call Perl_MenuTitle()<CR>'
-    exe ahead.'perlcritic\ &verbosity<Tab>'.esc_mapl.'rpcv.-Sep6-            :'
-  endif
+
+  " ----- submenu : perlcritic verbosity -----
+	call mmtemplates#core#CreateMenus ( 'g:Perl_Templates', s:Perl_RootMenu, 'sub_menu', 'Run.perlcritic\ &verbosity' )
 
   for level in s:PCverbosityName
     exe ahead.'perlcritic\ &verbosity<Tab>'.esc_mapl.'rpcv.&'.level.'   :call Perl_GetPerlcriticVerbosity('.level.')<CR>'
   endfor
   exe ahead.'perlcritic\ &options<Tab>'.esc_mapl.'rpco                :call Perl_PerlcriticOptionsInput()<CR>'
 
+  " ----- hardcopy, settings -----
   exe ahead.'-SEP5-                     :'
   exe ahead.'save\ buffer\ with\ &timestamp<Tab>'.esc_mapl.'rt        :call Perl_SaveWithTimestamp()<CR>'
   exe ahead.'&hardcopy\ to\ FILENAME\.ps<Tab>'.esc_mapl.'rh           :call Perl_Hardcopy("n")<CR>'
   exe vhead.'&hardcopy\ to\ FILENAME\.ps<Tab>'.esc_mapl.'rh      <C-C>:call Perl_Hardcopy("v")<CR>'
   exe ahead.'-SEP6-                     :'
   exe ahead.'settings\ and\ hot\ &keys<Tab>'.esc_mapl.'rk             :call Perl_Settings(0)<CR>'
-  "
+
+  " ----- xterm -----
   if  !s:MSWIN
     exe ahead.'&xterm\ size<Tab>'.esc_mapl.'rx                          :call Perl_XtermSize()<CR>'
   endif
@@ -2737,8 +2723,8 @@ function! s:CreateAdditionalMaps ()
 	"-------------------------------------------------------------------------------
 	"
 	if s:Perl_Ctrl_j == 'on'
-		nnoremap    <buffer>  <silent>  <C-j>    i<C-R>=Perl_JumpCtrlJ()<CR>
-		inoremap    <buffer>  <silent>  <C-j>     <C-R>=Perl_JumpCtrlJ()<CR>
+		nnoremap    <buffer>  <silent>  <C-j>       i<C-R>=Perl_JumpCtrlJ()<CR>
+		inoremap    <buffer>  <silent>  <C-j>  <C-g>u<C-R>=Perl_JumpCtrlJ()<CR>
 	endif
 	"
 	" ----------------------------------------------------------------------------
@@ -2821,7 +2807,7 @@ if has("autocmd")
 	autocmd FileType *
 				\	if ( &filetype == 'perl' || &filetype == 'pod') |
 				\		if ! exists( 'g:Perl_Templates' ) |
-				\			if s:Perl_LoadMenus == 'yes' | call Perl_CreateGuiMenus ()        |
+				\			if s:Perl_LoadMenus == 'yes' | call Perl_CreateGuiMenus ()    |
 				\			else                         | call s:Perl_RereadTemplates () |
 				\			endif |
 				\		endif |

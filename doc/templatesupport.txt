@@ -1,8 +1,8 @@
-*templatesupport.txt*         MM Template Support                  Mar 08 2015
+*templatesupport.txt*         MM Template Support                  Jan 06 2016
 
 MM Template Support                                        *template-support*
 
-                            Plug-in version 1.0alpha
+                            Plug-in version 1.0beta
                         for Vim version 7.0 and above
                  Wolfgang Mehner <wolfgang-mehner at web.de>
 
@@ -49,6 +49,8 @@ Here is a list of high profile plug-ins which use the template support:
  4.    Templates                             |template-support-templates|
  4.1    Macros                               |template-support-templ-macro|
  4.1.1   Predefined Macros                   |template-support-templ-predef|
+ 4.1.2   Flags                               |template-support-templ-flag|
+ 4.1.3   Format Specifiers                   |template-support-templ-format|
  4.2    Tags                                 |template-support-templ-tags|
  4.3    Placement                            |template-support-templ-place|
  4.3.1   Visual Mode                         |template-support-templ-visual|
@@ -356,7 +358,7 @@ When this call is inserted into a library, it has to be checked for constructs
 which can not be used anymore. However, existing libraries must not be changed
 immediately once a new version comes along.
 
-See |template-support-change-interf| for a change log limited to changed in
+See |template-support-change-interf| for a change log limited to changes in
 the interface.
 
 ==============================================================================
@@ -408,10 +410,10 @@ entry within the menu "Statements".
 ------------------------------------------------------------------------------
 
 Templates are useful because in source code, certain structures are repeated
-regularly. Within this structures however, certain parts a variable. Templates
-represent those via macros. Macros have a name, which has to follow the same
-rules as C identifiers. They start with a letter or underscore, and can
-contain numbers after that. Within a template, macros are written as their
+regularly. Within this structures however, certain parts are variable.
+Templates represent those via macros. Macros have a name, which has to follow
+the same rules as C identifiers. They start with a letter or underscore, and
+can contain numbers after that. Within a template, macros are written as their
 names, surrounded by two bars:
 	*|AUTHOR|*
 Replacement for macros can be given in the template library itself: >
@@ -458,9 +460,43 @@ be suggested the next time the user has to replace this macro:
 
 	== ENDTEMPLATE ==
 <
-Certain uses come with special requirements on the format of the replacement.
-Consider an include guard, where usually an upper case version of the files
-name is used to name the guard, such as "_THISFILE_INC":
+------------------------------------------------------------------------------
+
+4.1.1  Predefined Macros                       *template-support-templ-predef*
+
+The replacements for various macros are handled automatically by the template
+support. Mostly, they will help with the basic documentation of the file: What
+was edited and when?
+
+  *|PATH|*     : the path of the current file
+  *|FILENAME|* : the name of the file
+  *|BASENAME|* : the name of the file without the suffix
+  *|SUFFIX|*   : the suffix of the file
+
+Except for using flags, the user has no further influence on the replacements
+of these macros, they can not be set via SetMacro().
+
+  *|TIME|*     : the current time
+  *|DATE|*     : the current date
+  *|YEAR|*     : the current year
+
+Further macros can be used to print "pretty" dates in READMEs and other
+documentation.
+
+  *|DATE_PRETTY|*  *|DATE_PRETTY1|*
+  *|DATE_PRETTY2|* *|DATE_PRETTY3|*
+  *|TIME_PRETTY|*  *|YEAR_PRETTY|*
+
+The format of the inserted dates and times can be set via SetFormat (see
+|template-support-SetFormat|).
+
+------------------------------------------------------------------------------
+
+4.1.2  Flags                                     *template-support-templ-flag*
+
+Certain uses come with special requirements on the replacement text. Consider
+an include guard, where usually an upper case version of the files name is
+used to name the guard, such as "_THISFILE_INC":
 >
 	== Preprocessor.include guard == below, noindent ==
 	#ifndef _|BASENAME:u|_INC
@@ -475,33 +511,105 @@ inserted with all letters in uppercase. So a file named "string.h" will have
 an include guard named "_STRING_INC".
 
 The possible flags are listed below:
-	:l - change text to lowercase
-	:u - change text to uppercase
+	:l - change replacement text to lowercase
+	:u - change replacement text to uppercase
 	:c - capitalize text (change first letter to uppercase)
 	:L - legalize name (replace all non-word characters with underscores)
+	:T - remove tags (remove all cursor, split, and jump tags)
 
 ------------------------------------------------------------------------------
 
-4.1.1  Predefined Macros                       *template-support-templ-predef*
+4.1.3  Format Specifiers                       *template-support-templ-format*
 
-The replacements for various macros are handles automatically by the template
-support. Mostly, they will help with the basic documentation of the file: What
-was edited and when?
+A format specifier can be added to change the way the macro is replaced. E.g.,
+in some comment boxes the formatting should not be broken. Consider this
+example:
+>
+	== Comments.file description == start ==
+	# ################################################## #
+	#          File:  |FILENAME|                         #
+	#   Description:  <CURSOR>                           #
+	#                                                    #
+	#        Author:  |AUTHOR|                           #
+	#       Version:  1.0                                #
+	#       Created:  |DATE|                             #
+	# ################################################## #
 
-	*|PATH|*     : the path of the current file
-	*|FILENAME|* : the name of the file
-	*|BASENAME|* : the name of the file without the suffix
-	*|SUFFIX|*   : the suffix of the file
+	== ENDTEMPLATE ==
+<
+Inserting this template into a file would result in a broken formatting:
+>
+	# ################################################## #
+	#          File:  test.sh                         #
+	#   Description:  |                          #
+	#                                                    #
+	#        Author:  Wolfgang Mehner                           #
+	#       Version:  1.0                                #
+	#       Created:  11.11.2015                             #
+	# ################################################## #
+<
+Therefore macros can be specified to be inserted with fixed width, for
+example:
+>
+	== Comments.file description == start ==
+	# ################################################## #
+	#          File:  |FILENAME%++++++++++++++++++++++l| #
+	#   Description:  <RCURSOR>                          #
+	#                                                    #
+	#        Author:  |AUTHOR%++++++++++++++++++++++++l| #
+	#       Version:  1.0                                #
+	#       Created:  |DATE%++++++++++++++++++++++++++l| #
+	# ################################################## #
 
-Except for using flags, the user has no further influence on the replacements
-of these macros, they can not be set via SetMacro().
+	== ENDTEMPLATE ==
+<
+The format specifier causes the replacement text to be padded with spaces,
+such that a text of the desired width is inserted. The special cursor tag
+<RCURSOR> is replaced with the right amount of spaces as well, and after the
+template insertion replacement mode is started:
+>
+	# ################################################## #
+	#          File:  test.sh                            #
+	#   Description:  |                                  #
+	#                                                    #
+	#        Author:  Wolfgang Mehner                    #
+	#       Version:  1.0                                #
+	#       Created:  11.11.2015                         #
+	# ################################################## #
+<
+The format specifier is a '%' followed by several plus characters '+', which
+are used to extend the macro to the desired width. The format specifier ends
+with an (optional) character 'l', 'c', or 'r' to indicate the alignment (left,
+center, or right, respectively).
 
-	*|TIME|*     : the current time
-	*|DATE|*     : the current date
-	*|YEAR|*     : the current year
+If the replacement text is longer than the macro in the template, the
+formatting will be broken. Instead of the plus character, several dashes can
+be used. In this case the replacement text will be cut off if it is longer
+than the macro:
+>
+	== Comments.file description == start ==
+	# ################################################## #
+	#          File:  |FILENAME%----------------------l| #
+  ...
+<
+The width can also be specified by a number. To insert a text which is always
+at least 4 characters long: >
+  |AUTHORREF%+4|
+To insert it such that the text is never longer than 4 characters: >
+  |AUTHORREF%-4|
 
-The format of the inserted dates and times can be set via SetFormat (see
-|template-support-SetFormat|).
+The following format specifiers are possible, the alignment is always optional:
+
+  %++++++l - pad the replacement text
+  %------l - pad the replacement text, cut off if it is to long
+
+  %+10l    - the width is given by the number
+  %-10l    - the width is given by the number, cut off if the text is to long
+  %10l     - the width is given by the number, do not cut off
+
+  %+l %-l  - align left
+  %+c %-c  - align center
+  %+r %-r  - align right
 
 ------------------------------------------------------------------------------
 4.2  TAGS                                        *template-support-templ-tags*
@@ -923,20 +1031,24 @@ value on the left.
 
 Values for "expandleft:..." and "expandright:...":
 
-  Value           usage with lists
+  Value            usage with lists
  ----------------------------------------------------------------------------
-  key             the list element
-  key-notags      same as "key", but all tags (cursor, split, jump) removed
-  value           same as "key"
-  value-notags    same as "key-notags"
+  key              the list element
+  key-notags       same as "key", but all tags (cursor, split, jump) removed
+  key-whitetags    same as "key", but all tags replace with a space
+  value            same as "key"
+  value-notags     same as "key-notags"
+  value-whitetags  same as "key-whitetags"
  ----------------------------------------------------------------------------
 
-  Value           usage with dictionaries
+  Value            usage with dictionaries
  ----------------------------------------------------------------------------
-  key             the key
-  key-notags      the key, all tags removed
-  value           the value
-  value-notags    the value, all tags removed
+  key              the key
+  key-notags       the key, but all tags (cursor, split, jump) removed
+  key-whitetags    the key, all tags replace with a space
+  value            the value
+  value-notags     the value, all tags removed
+  value-whitetags  the value, all tags replace with a space
  ----------------------------------------------------------------------------
 
 ==============================================================================
@@ -1272,6 +1384,8 @@ session. The variables can be set in the .vimrc file.
 
   Variable                    Default     Description and further information
  ----------------------------------------------------------------------------
+  |g:Templates_OverwriteWarning|'no'        whether to print a warning when
+                                          a template is overwritten
   |g:Templates_MapInUseWarn|    'yes'       whether to print a warning when
                                           maps would overwrite existing maps
   |g:Templates_TemplateBrowser| 'explore'   how to browse template files
@@ -1294,6 +1408,12 @@ the Windows defaults are as follows:
   |g:Templates_InternetBrowserExec|    - C:\Program Files\Mozilla Firefox\
                                        firefox.exe
 
+------------------------------------------------------------------------------
+                                                *g:Templates_OverwriteWarning*
+Whenever a template is overwritten, a warning can be printed. This warning is
+disable by default. It can be enabled by adding this setting to the ".vimrc": >
+  let g:Templates_OverwriteWarning = 'yes'
+<
 ------------------------------------------------------------------------------
                                                     *g:Templates_MapInUseWarn*
 Whenever a map configured in a template library would overwrite a map which is
@@ -1456,10 +1576,10 @@ not available.
 To load the template personalization file into the library, call: >
   mmtemplates#core#ReadTemplates ( library, "personalization",
     \ "name", "personal", "map", "ntp" )
-It will only be added if it is available and should be used, i.e. if calling
-|mmtemplates#core#FindPersonalizationFile()| returns a non-empty string. The
-personalization file can also be associated with a symbolic name, shortcut,
-and map.
+The personalization file will only be added if it is available and should be
+used, i.e. if calling |mmtemplates#core#FindPersonalizationFile()| returns a
+non-empty string. The personalization file can also be associated with a
+symbolic name, shortcut, and map.
 
 The entire library can be reloaded by calling: >
   mmtemplates#core#ReadTemplates ( library, "reload", "all" )
@@ -1748,8 +1868,9 @@ No returns.
 creation of menu entries. Sub-menus are created automatically as needed.
 The special operations are: edit/reread the library, choose a style. The
 corresponding menu entries are put in the sub-menus given by the option
-"specials_menu". The menu entries for editing templates can be customized for
-each file by passing additional information while loading a file using
+"specials_menu". The name of this sub-menu must already be correctly escaped.
+The menu entries for editing templates can be customized for each file by
+passing additional information while loading a file using
 |mmtemplates#core#ReadTemplates()|.
 
 Each sub-menu looks like this, starting with a header:
@@ -1763,10 +1884,12 @@ Each sub-menu looks like this, starting with a header:
 The global name (option "global_name") helps to keep track of tear-off menus.
 "sub_menu" can be used to create additional menus, which have the same header.
 When a sub-menu is created through use of the API like this, an optional
-priority can be specified.
+priority can be specified. The menu names given must already be correctly
+escaped.
 
 The library keeps track of all created sub-menus, to be able to add the
-headers correctly. "existing_menu" adds menus to this list.
+headers correctly. "existing_menu" adds menus to this list. The names of the
+menus must be correctly escaped.
 "do_reset" resets this list and allows for the menus to be created once more.
 "do_all" also reset the list before it carries out further operations.
 
@@ -1929,7 +2052,7 @@ For "add" and "set" 'rval' is undefined.
 Macros:
 
 Setting the special macros "DATE", "TIME", and "YEAR" changes the format of
-the date and time. they use the same format as the function |strftime()|.
+the date and time. They use the same format as the function |strftime()|.
 Setting "BASENAME", "FILENAME", "PATH" and "SUFFIX" has no effect.
 
 Properties:
@@ -2037,7 +2160,7 @@ unchanged.
                                                *mmtemplates#core#EscapeMenu()*
 Escape a string to be used as a menu entry:
 
-  str = mmtemplates#core#EscapeMenu ( str ) ~
+  str = mmtemplates#core#EscapeMenu ( str, ... ) ~
 
 Parameters:
   str - The menu item. (string)
@@ -2374,13 +2497,27 @@ Set the format of 'item' to 'format':
 
 	SetFormat ( item, format ) ~
 
-This changes the way the macros "TIME", "DATE" and "YEAR" are replaced. It
-sets the format of the date and time. They use the same format as the function
-|strftime()|.
+This changes the way the time and date macros are formatted:
+  DATE  DATE_PRETTY  DATE_PRETTY1
+  TIME  TIME_PRETTY  DATE_PRETTY2
+  YEAR  YEAR_PRETTY  DATE_PRETTY3
+They use the same format as the function |strftime()|, also see the manpage of
+strftime(3).
+
+The locale can be set by calling the function with "TIME_LOCALE": >
+	SetFormat ( "TIME_LOCALE", "fr_FR" )
+Under Linux, run 'locale -a' to see all locales your system supports, compare
+the manpage of locale(1) and |:language|.
 
 Example: >
+
+Change the format of *|TIME|* to only hours and minutes: >
 	SetFormat ( "TIME", "%H:%M" )
 The macro *|TIME|* will now be replaced by something like 10:24.
+
+Change the locale to Spanish: >
+	SetFormat ( "TIME_LOCALE", "es_ES" )
+The names of the days, month, ... will now be in Spanish.
 
 ------------------------------------------------------------------------------
                                                  *template-support-SetMacro()*
@@ -2398,6 +2535,28 @@ Example: >
 	SetMacro ( "AUTHOR", "My cat." )
 
 ------------------------------------------------------------------------------
+                                                   *template-support-SetMap()*
+Set the map of the template 'name' to 'map':
+
+	SetMap ( name, map ) ~
+
+This changes the map of the template named 'name'. The map has to follow the
+rules as the "map:<map>" option (see |template-support-map|). The name of the
+template appears in the template definition between the first pair of == , the
+menu is part of the name, also whitespaces contained within the name.
+
+Example: >
+
+Consider this template definition:
+>
+	== Include.global include == below, map:igi ==
+     ^                    ^
+     |----- the name -----|
+<
+Then you can set a different map using: >
+  SetMap ( "Include.global include", "igl" )
+<
+------------------------------------------------------------------------------
                                                   *template-support-SetPath()*
 Set the resource 'name' to the given path.
 
@@ -2414,6 +2573,29 @@ Set the property 'name' to the given value.
 Only existing properties can be set. If 'name' does not refer to an existing
 property, an error will be printed.
 
+------------------------------------------------------------------------------
+                                              *template-support-SetShortcut()*
+Set the shortcut of the template 'name' to 'sc':
+
+	SetShortcut ( name, sc ) ~
+
+This changes the shortcut of the template named 'name'. The shortcut has to
+follow the rules as the "shortcut:<sc>" option (see |template-support-sc|).
+The name of the template appears in the template definition between the first
+pair of == , the menu is part of the name, also whitespaces contained within
+the name.
+
+Example: >
+
+Consider this template definition:
+>
+	== Include.global include == below, sc:g ==
+     ^                    ^
+     |----- the name -----|
+<
+Then you can set a different shortcut using: >
+  SetShortcut ( "Include.global include", "l" )
+<
 ------------------------------------------------------------------------------
                                                  *template-support-SetStyle()*
 Set the active style to 'name':
@@ -2619,8 +2801,9 @@ Note: "visual" is the default for templates containing the split tag,
       "novisual" for templates without the split tag.
 
 ------------------------------------------------------------------------------
-                  *template-support-sc*         *template-support-nomenu*
-                  *template-support-shortcut*   *template-support-expandmenu*
+                  *template-support-nomenu*     *template-support-expandmenu*
+                  *template-support-sc*         *template-support-expandleft*
+                  *template-support-shortcut*   *template-support-expandright*
                   *template-support-map*
 Menus and Maps:
 
@@ -2647,7 +2830,7 @@ Submenus for templates using lists (|template-support-PickList()|):
                        (interface 1.0+)
 
 (^1) valid values for <what> are (see |template-support-lists-menu|):
-  key, key-notags, value, value-notags
+  key, key-notags, key-whitetags, value, value-notags, value-whitetags
 
 ------------------------------------------------------------------------------
 C.2  LISTS                                         *template-support-opt-list*
@@ -2684,7 +2867,7 @@ D.  CHANGE LOG                                   *template-support-change-log*
 ==============================================================================
 
 ------------------------------------------------------------------------------
-  RELEASE NOTES FOR VERSION 1.0alpha
+  RELEASE NOTES FOR VERSION 1.0beta
 ------------------------------------------------------------------------------
 
   **  Added a system for introducing changes to the template library.     **
@@ -2692,44 +2875,55 @@ D.  CHANGE LOG                                   *template-support-change-log*
   **  introduced prior to 1.0 .                                           **
   **  Calling InterfaceVersion() will enable newer features.              **
 
-- Added: 'InterfaceVersion' to enable newer features in the template library.
+- Add: 'InterfaceVersion' to enable newer features in the template library.
   (This feature is considered to be part of the old interface.)
-- Added: Templates can be associated with a filetype, and its maps only
-  created for that filetype.
-- Added: New jump tags [+NAME+] and [-NAME-] for optional parameters.
-- Added: New map <ctrl-d> to delete optional jump tags [+NAME+] and [-NAME-].
-- Added: Template options "expandleft" and "expandright". Extended the option
+- Add: Templates can be associated with a filetype, and its maps only created
+  for that filetype.
+- Add: Format specifiers for macros.
+- Add: New "replacement cursor" tags <RCURSOR> and {RCURSOR}.
+- Add: New date and time macros *|DATE_PRETTY|* , *|TIME_PRETTY|* , ...
+- Add: Left-right separators *|<<>>|* .
+- Add: New jump tags [+NAME+] and [-NAME-] for optional parameters.
+- Add: New map <ctrl-d> to delete optional jump tags [+NAME+] and [-NAME-].
+- Change: Insert a breakpoint into the undo sequence before inserting
+  templates or jumping via <ctrl+j>.
+- Add: Template options "expandleft" and "expandright". Extended the option
   "expandmenu".
-- Changed: During the creation of the submenu for a list-picking template, all
+- Add: Functions 'SetMap', 'SetShortcut', and 'SetMenuEntry'.
+- Change: If a template is redefined, the options are read again.
+- Change: During the creation of the submenu for a list-picking template, all
   special characters are escaped correctly. (The characters "\" and "|" were
   not escaped before.)
-- Changed: Inserting templates in visual mode does not overwrite the unnamed
+- Change: Inserting templates in visual mode does not overwrite the unnamed
   register anymore.
-- Fixed: Map creation could fail after reloading the template library.
-- Added: User setting |g:Templates_TemplateBrowser| to configure the browser
+- Fix: Map creation could fail after reloading the template library.
+- Add: User setting |g:Templates_OverwriteWarning| to configure warnings in
+  case a template is overwritten.
+- Add: User setting |g:Templates_TemplateBrowser| to configure the browser
   used for editing templates.
-- Added: User settings |g:Templates_PersonalizationFile| and
+- Add: User settings |g:Templates_PersonalizationFile| and
   |g:Templates_UsePersonalizationFile| to configure the personalization file.
-- Added: Help templates can call a browser using |Browser( <url> )|.
-- Added: User settings |g:Templates_InternetBrowserExec| and
+- Add: Help templates can call a browser using |Browser( <url> )|.
+- Add: User settings |g:Templates_InternetBrowserExec| and
   |g:Templates_InternetBrowserFlags| to configure the browser used by help
   templates.
-- Added: Setup wizard.
-- Extended the documentation.
+- Add: Proper filetype detection for template files, filetype plug-in.
+- Add: Setup wizard.
+- Extend the documentation.
 
 API:
-- Changed: Template files can be associated with a symbolic name and a map,
+- Change: Template files can be associated with a symbolic name and a map,
   which are used for the creation of the "edit templates" menu entries and
   maps.
-- Changed: Template files can be optional. Information such as their symbolic
+- Change: Template files can be optional. Information such as their symbolic
   name is kept. They still show up in debug information, ... They can be
   enabled later on, e.g. by the template setup wizard.
-- Added: Extended the API with functionality for adding a personalization file
+- Add: Extended the API with functionality for adding a personalization file
   which can be used by all libraries.
-- Added: Function |mmtemplates#core#EnableTemplateFile()|.
-- Added: Function |mmtemplates#core#FindPersonalizationFile()|.
-- Added: Function |mmtemplates#core#AddCustomTemplateFiles()|.
-- Changed: New options for the function |mmtemplates#core#ReadTemplates()| and
+- Add: Function |mmtemplates#core#EnableTemplateFile()|.
+- Add: Function |mmtemplates#core#FindPersonalizationFile()|.
+- Add: Function |mmtemplates#core#AddCustomTemplateFiles()|.
+- Change: New options for the function |mmtemplates#core#ReadTemplates()| and
   |mmtemplates#core#Resource()|.
 
 Internal Changes:
@@ -2852,19 +3046,19 @@ See also |template-support-lib-interf|.
   INTERFACE VERSION 1.0
 ------------------------------------------------------------------------------
 
-- Added: Templates can be associated with a filetype, and its maps only
-  created for that filetype, using: >
+- Add: Templates can be associated with a filetype, and its maps only created
+  for that filetype, using: >
   == USE FILETYPES : ... ==
-- Added: New jump tags [+NAME+] and [-NAME-] for optional parameters. Can be
+- Add: New jump tags [+NAME+] and [-NAME-] for optional parameters. Can be
   used as targets for jumps.
-- Added: New map <ctrl-d> to delete optional jump tags [+NAME+] and [-NAME-]
+- Add: New map <ctrl-d> to delete optional jump tags [+NAME+] and [-NAME-]
   together with their separator ",".
-- Added: Template options "expandleft" and "expandright". Extended the option
+- Add: Template options "expandleft" and "expandright". Extended the option
   "expandmenu".
-- Changed: During the creation of the submenu for a list-picking template, all
+- Change: During the creation of the submenu for a list-picking template, all
   special characters are escaped correctly. (The characters "\" and "|" were
   not escaped before.)
-- Added: Help templates can call a browser using |Browser( <url> )|.
+- Add: Help templates can call a browser using |Browser( <url> )|.
 
 ------------------------------------------------------------------------------
   INTERFACE VERSION 0.9
@@ -2885,6 +3079,10 @@ Jeremy Cantrell (jmcantrell):
 - the solution for getting the visual area is take from his plug-in
   "opener.vim", which is distributed under the same licence as Vim itself
   ( http://www.vim.org/scripts/script.php?script_id=3543 )
+
+Andrew L:
+- suggested to insert a breakpoint into the undo sequence before inserting
+  templates and provided the outline for the solution
 
 ==============================================================================
 vim:tw=78:noet:ts=2:ft=help:norl:expandtab:

@@ -299,7 +299,6 @@ let s:StandardProperties = {
 			\ 'Templates::Wizard::FileCustomWithPersonal' : '',
 			\ 'Templates::Wizard::FilePersonal'           : '',
 			\ 'Templates::Wizard::CustomFileVariable'     : '',
-			\ 'Templates::Wizard::AddFileListVariable'    : '',
 			\ }
 "
 "----------------------------------------------------------------------
@@ -592,7 +591,10 @@ function! s:UserInputEx ( ArgLead, CmdLine, CursorPos )
 	if empty( a:ArgLead )
 		return copy( s:UserInputList )
 	endif
-	return filter( copy( s:UserInputList ), 'v:val =~ ''\V\<'.escape(a:ArgLead,'\').'\w\*''' )
+	" The obvious choice here would be '\<' followed by the regular expression
+	" which matches the argument lead. We use '\[0-9a-zA-Z]\@<!' as an
+	" alternative, which means that underscores can also break up words.
+	return filter( copy( s:UserInputList ), 'v:val =~ ''\V\[0-9a-zA-Z]\@<!'.escape(a:ArgLead,'\').'\w\*''' )
 endfunction    " ----------  end of function s:UserInputEx  ----------
 "
 " s:UserInputList : list for s:UserInput   {{{3
@@ -773,15 +775,27 @@ endfunction    " ----------  end of function s:WarningMsg  ----------
 "----------------------------------------------------------------------
 "
 function! mmtemplates#core#NewLibrary ( ... )
-	"
+
 	" ==================================================
 	"  options
 	" ==================================================
-	"
+
+	let api_version_str = '0.9'
+	let api_version     = s:VersionCode ( api_version_str )
+
 	let i = 1
 	while i <= a:0
-		"
-		if a:[i] == 'debug' && i+1 <= a:0 && ! s:DebugGlobalOverwrite
+
+		if a:[i] == 'api_version' && i+1 <= a:0
+			let api_version_str = a:[i+1]
+			let api_version     = s:VersionCode ( api_version_str )
+			if api_version == -1
+				call s:ErrorMsg ( 'Invalid version number: "'.api_version_str.'"' )
+				let api_version_str = '0.9'
+				let api_version     = s:VersionCode ( api_version_str )
+			endif
+			let i += 2
+		elseif a:[i] == 'debug' && i+1 <= a:0 && ! s:DebugGlobalOverwrite
 			let s:DebugLevel = a:[i+1]
 			let i += 2
 		else
@@ -789,17 +803,19 @@ function! mmtemplates#core#NewLibrary ( ... )
 			else                             | call s:ErrorMsg ( 'Unknown option at position '.i.'.' ) | endif
 			let i += 1
 		endif
-		"
+
 	endwhile
-	"
+
 	" ==================================================
 	"  data
 	" ==================================================
-	"
+
 	" library
 	let library   = {
-				\ 'interface_str'  : '0.9',
-				\ 'interface'      : ( s:VersionCode('0.9') ),
+				\ 'api_version_str' : api_version_str,
+				\ 'api_version'     : api_version,
+				\ 'interface_str'   : '0.9',
+				\ 'interface'       : ( s:VersionCode('0.9') ),
 				\
 				\ 'macros'         : {},
 				\ 'properties'     : {},
@@ -826,22 +842,22 @@ function! mmtemplates#core#NewLibrary ( ... )
 				\ 'library_files'  : [],
 				\ }
 	" entries used by maps: 'map_commands!<filetype>'
-	"
+
 	let library.macros.AUTHOR = 'YOUR NAME'
 	call extend ( library.macros,     s:StandardMacros,     'keep' )
 	call extend ( library.properties, s:StandardProperties, 'keep' )
-	"
+
 	call s:UpdateFileReadRegex ( library.regex_file,     library.regex_settings, library.interface )
 	call s:UpdateTemplateRegex ( library.regex_template, library.regex_settings, library.interface )
-	"
+
 	" ==================================================
 	"  wrap up
 	" ==================================================
-	"
+
 	let s:DebugLevel = s:DebugGlobalOverwrite   " reset debug
-	"
+
 	return library      " return the new library
-	"
+
 endfunction    " ----------  end of function mmtemplates#core#NewLibrary  ----------
 "
 "----------------------------------------------------------------------
@@ -1427,15 +1443,30 @@ endfunction    " ----------  end of function s:InterfaceVersion  ----------
 "----------------------------------------------------------------------
 "
 function! s:SetFormat ( name, replacement )
-	"
+
 	" check for valid name
-	if a:name !~ '^\%(TIME.*\|DATE.*\|YEAR.*\)'
+	if a:name !~ s:library.regex_file.MacroName
+		call s:ErrorMsg ( 'Macro name must be a valid identifier: '.a:name )
+		return
+	elseif a:name !~ '^\%(TIME.*\|DATE.*\|YEAR.*\)'
 		call s:ErrorMsg ( 'Can not set the format of: '.a:name )
 		return
+	elseif a:name == 'TIME_LOCALE'
+
+		let save_time_lang = v:lc_time
+
+		try
+			silent exe 'language time '.a:replacement
+		catch /E197:.*/
+			call s:ErrorMsg ( 'Can not set the time locale to "'.a:replacement.'".' )
+			return
+		finally
+			silent exe 'language time '.save_time_lang
+		endtry
 	endif
-	"
+
 	let s:library.macros[ a:name ] = a:replacement
-	"
+
 endfunction    " ----------  end of function s:SetFormat  ----------
 "
 "----------------------------------------------------------------------
@@ -3760,26 +3791,32 @@ endfunction    " ----------  end of function mmtemplates#core#InsertTemplate  --
 "----------------------------------------------------------------------
 " === Create Maps: Auxiliary Functions ===   {{{1
 "----------------------------------------------------------------------
-"
+
 "-------------------------------------------------------------------------------
 " s:DoCreateMap : Check whether a map already exists.   {{{2
 "-------------------------------------------------------------------------------
-"
+
 function! s:DoCreateMap ( map, mode, report )
-	"
+
 	let mapinfo = maparg ( a:map, a:mode )
-	if ! empty ( mapinfo ) && mapinfo !~ 'mmtemplates#core#'
-		if a:report
+
+	if ! empty ( mapinfo ) && a:report
+		if mapinfo !~ 'mmtemplates#core#'
 			call s:ErrorMsg ( 'Mapping already in use: "'.a:map.'", mode "'.a:mode.'", command:', '  '.mapinfo )
+		elseif 0
+			" :TODO:15.12.2015 11:47:WM: the template maps are not existing at this
+			" point, since the commands are serialized as a string before they are
+			" executed; find another way to obtain the template name
+			let temp_name = 'TODO - not implemented yet -'
+			call s:ErrorMsg ( 'Mapping already in use: "'.a:map.'", mode "'.a:mode.'", template:', '  '.temp_name )
 		endif
-		return 0
 	endif
-	"
-	return 1
+
+	return empty ( mapinfo )
 endfunction    " ----------  end of function s:DoCreateMap  ----------
 " }}}2
 "----------------------------------------------------------------------
-"
+
 "----------------------------------------------------------------------
 " mmtemplates#core#CreateMaps : Create maps for a template library.   {{{1
 "----------------------------------------------------------------------
@@ -4418,7 +4455,11 @@ function! mmtemplates#core#CreateMenus ( library, root_menu, ... )
 			else                               | call extend ( submenus, a:[i+1] ) | endif
 			let i += 2
 		elseif a:[i] == 'specials_menu' && i+1 <= a:0
-			let s:t_runtime.spec_menu = a:[i+1]
+			if t_lib.api_version < 1000000
+				let s:t_runtime.spec_menu = escape ( a:[i+1], ' ' )
+			else
+				let s:t_runtime.spec_menu = a:[i+1]
+			endif
 			let i += 2
 		elseif a:[i] == 'priority' && i+1 <= a:0
 			let priority = a:[i+1]
@@ -4461,12 +4502,20 @@ function! mmtemplates#core#CreateMenus ( library, root_menu, ... )
 	for name in existing
 		let name = substitute( name, '&', '', 'g' )
 		let name = substitute( name, '\.$', '', '' )
-		let t_lib.menu_existing[ name ] = 0
+		if t_lib.api_version < 1000000
+			let t_lib.menu_existing[ escape ( name, ' ' ) ] = 0
+		else
+			let t_lib.menu_existing[ name ] = 0
+		endif
 	endfor
 	"
 	" sub-menus
 	for name in submenus
-		call s:CreateSubmenu ( name, priority )
+		if t_lib.api_version < 1000000
+			call s:CreateSubmenu ( escape ( name, ' ' ), priority )
+		else
+			call s:CreateSubmenu ( name, priority )
+		endif
 	endfor
 	"
 	" templates
@@ -4647,7 +4696,9 @@ function! mmtemplates#core#Resource ( library, mode, ... )
 			endif
 		endfor
 		"
-		call add ( templist, '(template engine version '.g:Templates_Version.', interface version '.t_lib.interface_str.')' )
+		call add ( templist,
+					\ '(template engine version '.g:Templates_Version
+					\ .', API '.t_lib.api_version_str.', interface '.t_lib.interface_str.')' )
 		"
 		return [ templist, '' ]
 	else
@@ -5070,7 +5121,7 @@ function! mmtemplates#core#AddCustomTemplateFiles ( library, temp_list, list_nam
 	for i in range( 0, len ( a:temp_list )-1 )
 		"
 		if type( a:temp_list[i] ) != type( [] )
-			call s:ErrorMsg ( 'The entry of "'.a:list_name.'" with index '.i.' is not a list.' )
+			call s:ErrorMsg ( 'The entry of '.a:list_name.' with index '.i.' is not a list.' )
 			continue
 		endif
 		"
@@ -5081,10 +5132,10 @@ function! mmtemplates#core#AddCustomTemplateFiles ( library, temp_list, list_nam
 		let file_name = expand ( file_name )
 		"
 		if file_name == ''
-			call s:ErrorMsg ( 'The entry of "'.a:list_name.'" with index '.i.' does not contain a file name.' )
+			call s:ErrorMsg ( 'The entry of '.a:list_name.' with index '.i.' does not contain a file name.' )
 			continue
 		elseif ! filereadable ( file_name )
-			call s:ErrorMsg ( 'The entry of "'.a:list_name.'" with index '.i.' does not name a readable file.' )
+			call s:ErrorMsg ( 'The entry of '.a:list_name.' with index '.i.' does not name a readable file.' )
 			continue
 		endif
 		"

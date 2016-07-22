@@ -1,8 +1,8 @@
-*perlsupport.txt*                Perl Support                      Jan 08 2016
+*perlsupport.txt*                Perl Support                      Jul 22 2016
 
 Perl Support                                      *perl-support* *perlsupport*
 
-                             Plug-in version 5.4pre
+                             Plug-in version 5.4
                         for Vim version 7.0 and above
                    Wolfgang Mehner <wolfgang-mehner@web.de>
                       Fritz Mehner <mehner.fritz@web.de>
@@ -1337,7 +1337,7 @@ value.  Possible values are 'vim', 'buffer' and 'xterm'.
 Vim (non-GUI) : The output destination can be toggled between (1) and (2)
                 using the hotkey \ro .
 
-The xterm defaults can be set in .vimrc by the variable g:Perl_XtermDefaults .
+The xterm defaults can be set in .vimrc by the variable g:Xterm_Options .
 The default is "-fa courier -fs 12 -geometry 80x24" :
   font name     : -fa courier
   font size     : -fs 12
@@ -1766,13 +1766,14 @@ g:Perl_InsertFileHeader        'yes'
 g:Perl_CreateMenusDelayed      'yes'
 g:Perl_PerlTags                'off'
 g:Perl_PerltidyBackup          'off'
-g:Perl_Perl                    "/usr/bin/perl" or "C:/Perl/bin/perl.exe"
+g:Perl_Executable              "/usr/bin/perl" or "C:/Perl/bin/perl.exe"
 g:Perl_DirectRun               'no'
 
 g:Perl_PerlModuleList          root_dir.'perl-support/modules/perl-modules.list'
 g:Perl_PerlModuleListGenerator root_dir.'perl-support/scripts/pmdesc3.pl'
 g:Perl_OutputGvim              "vim"
-g:Perl_XtermDefaults           "-fa courier -fs 12 -geometry 80x24"
+g:Xterm_Executable             "xterm"
+g:Xterm_Options                "-fa courier -fs 12 -geometry 80x24"
 g:Perl_Debugger                "perl"
 g:Perl_TimestampFormat         '%Y%m%d.%H%M%S'
 g:Perl_LineEndCommColDefault   49
@@ -1813,7 +1814,9 @@ The variable root_dir will automatically be set to one of the following values:
            g:Perl_PerlTags           : switch use of Perl::Tags on/off ( 'on', 'off' )
            g:Perl_Perltidy           : use perltidy as standard beautifier
            g:Perl_PerltidyBackup     : write a backup file before running perltidy
-           g:Perl_Perl               : the Perl executable
+           g:Perl_Executable         : the Perl executable
+           g:Perl_Perl               : the Perl executable (included for backwards
+                                       compatibility only)
            g:Perl_DirectRun          : run script via shebang
 
  3. group: g:Perl_PerlModuleList          : The name of the Perl module list (text file,
@@ -1823,7 +1826,10 @@ The variable root_dir will automatically be set to one of the following values:
            g:Perl_OutputGvim              : when script is running output goes to the vim
                                             command line ("vim"), to a buffer ("buffer")
                                             or to an xterm ("xterm").
-           g:Perl_XtermDefaults           : the xterm defaults
+           g:Xterm_Executable             : the xterm executable
+           g:Xterm_Options                : the xterm options
+           g:Perl_XtermDefaults           : the xterm options (included for backwards
+                                            compatibility only)
            g:Perl_Debugger                : the debugger called by F9 (perl, ptkdb, ddd).
            g:Perl_TimestampFormat         : trailing time stamp for a file
            g:Perl_LineEndCommColDefault   : default starting column for line end comments
@@ -2052,7 +2058,7 @@ The use of Perl 6 (or another interpreter) can be enabled in two way.
 The interpreter which runs ascript from inside Vim can be set globally
 in ~/.vimrc by 
 >
- let g:Perl_Perl	= '/usr/bin/perl6'
+ let g:Perl_Executable	= '/usr/bin/perl6'
 <
 Drawback for the moment: syntax checking does not work.
 
@@ -2096,6 +2102,13 @@ support this feature, so it should only contain basic information not
 pertaining to a specific programming language. It can be set up using a
 wizard, which is run by the map \ntw or the menu entry:
   Perl -> Snippets -> template setup wizard
+
+Further template files can be added using the call: >
+  call mmtemplates#config#Add ( 'perl', '<PATH>/some.templates', 'example', 'nte' )
+The first parameter adds the file to your Perl templates, the second is the
+path. The remaining two optional parameters specify the symbolic name for
+these templates and the map to edit them. The map is '\nte' in this example,
+if the standard mapleader is set.
 
 ------------------------------------------------------------------------------
 5.1  TEMPLATE FILES                              *perlsupport-templates-files*
@@ -2525,6 +2538,10 @@ for the system
   - Script set executable (file access permission under LINUX/UNIX) ?
   - Script syntax correct ?
   - Necessary modules installed ?
+  - Under Windows, make sure the options 'shell', 'shellcmdflag',
+    'shellquote', and 'shellxquote' are set correctly. If "cmd.exe" is used as
+    the 'shell', 'shellxquote' must be set to a double quote:
+      :set shellxquote=\"
 
 * Some hotkeys (e.g. x-F9) do not work.
   - The hotkeys might be in use by your graphical desktop environment.

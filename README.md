@@ -9,7 +9,7 @@ The development happens here:
 
 --------------------------------------------------------------------------------
 
-README for perl-support.vim (Version 5.4) / March 13 2016
+README for perl-support.vim (Version 5.4) / August 17 2016
 ================================================================================
 
   *  INSTALLATION

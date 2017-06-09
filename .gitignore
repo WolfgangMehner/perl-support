@@ -1,0 +1,13 @@
+# Directories #
+###############
+
+# Temporary Files #
+###################
+*~
+*.swp
+*.swo
+doc/tags
+
+# OS generated files #
+######################
+.DS_Store

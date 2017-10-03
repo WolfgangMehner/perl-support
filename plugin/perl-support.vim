@@ -39,8 +39,9 @@
 "
 "        Version:  see variable  g:Perl_PluginVersion  below
 "        Created:  09.07.2001
+"       Revision:  12.02.2017
 "        License:  Copyright (c) 2001-2014, Fritz Mehner
-"                  Copyright (c) 2015-2016, Wolfgang Mehner
+"                  Copyright (c) 2015-2017, Wolfgang Mehner
 "                  This program is free software; you can redistribute it
 "                  and/or modify it under the terms of the GNU General Public
 "                  License as published by the Free Software Foundation,
@@ -52,57 +53,201 @@
 "                  See the GNU General Public License version 2 for more details.
 "        Credits:  see perlsupport.txt
 "-------------------------------------------------------------------------------
-"
-" Prevent duplicate loading:
-"
-if exists("g:Perl_PluginVersion") || &compatible
-  finish
+
+"-------------------------------------------------------------------------------
+" === Basic checks ===   {{{1
+"-------------------------------------------------------------------------------
+
+" need at least 7.0
+if v:version < 700
+	echohl WarningMsg
+	echo 'The plugin perl-support.vim needs Vim version >= 7.'
+	echohl None
+	finish
 endif
-let g:Perl_PluginVersion= "5.4"
+
+" prevent duplicate loading
+" need compatible
+if exists("g:Perl_PluginVersion") || &cp
+	finish
+endif
+
+let g:Perl_PluginVersion= "5.5pre"                  " version number of this script; do not change
+
+"-------------------------------------------------------------------------------
+" === Auxiliary functions ===   {{{1
+"-------------------------------------------------------------------------------
+
+"-------------------------------------------------------------------------------
+" s:ApplyDefaultSetting : Write default setting to a global variable.   {{{2
 "
-"===  FUNCTION  ================================================================
-"          NAME:  s:ApplyDefaultSetting     {{{1
-"   DESCRIPTION:  Define a global variable and assign a default value if nor
-"                 already defined
-"    PARAMETERS:  name - global variable
-"                 default - default value
-"===============================================================================
-function! s:ApplyDefaultSetting ( name, default )
-  if !exists('g:'.a:name)
-    exe 'let g:'.a:name."  = '".a:default."'"
-	else
-		" check for an empty initialization
-		exe 'let	val	= g:'.a:name
-		if empty(val)
-			exe 'let g:'.a:name."  = '".a:default."'"
-		endif
-  endif
-endfunction   " ---------- end of function  s:ApplyDefaultSetting  ----------
+" Parameters:
+"   varname - name of the variable (string)
+"   value   - default value (string)
+" Returns:
+"   -
 "
-"===  FUNCTION  ================================================================
-"          NAME:  s:GetGlobalSetting   {{{1
-"   DESCRIPTION:  Assign a value to a local variable if a corresponding global
-"                 variable exists
-"    PARAMETERS:  varname - name of a global variable
-"                 glbname - name of the global variable (string, optional)
-"===============================================================================
+" If g:<varname> does not exists, assign:
+"   g:<varname> = value
+"-------------------------------------------------------------------------------
+
+function! s:ApplyDefaultSetting ( varname, value )
+	if ! exists ( 'g:'.a:varname )
+		let { 'g:'.a:varname } = a:value
+	endif
+endfunction    " ----------  end of function s:ApplyDefaultSetting  ----------
+
+"-------------------------------------------------------------------------------
+" s:ErrorMsg : Print an error message.   {{{2
+"
+" Parameters:
+"   line1 - a line (string)
+"   line2 - a line (string)
+"   ...   - ...
+" Returns:
+"   -
+"-------------------------------------------------------------------------------
+
+function! s:ErrorMsg ( ... )
+	echohl WarningMsg
+	for line in a:000
+		echomsg line
+	endfor
+	echohl None
+endfunction    " ----------  end of function s:ErrorMsg  ----------
+
+"-------------------------------------------------------------------------------
+" s:GetGlobalSetting : Get a setting from a global variable.   {{{2
+"
+" Parameters:
+"   varname - name of the variable (string)
+"   glbname - name of the global variable (string, optional)
+" Returns:
+"   -
+"
+" If 'glbname' is given, it is used as the name of the global variable.
+" Otherwise the global variable will also be named 'varname'.
+"
+" If g:<glbname> exists, assign:
+"   s:<varname> = g:<glbname>
+"-------------------------------------------------------------------------------
+
 function! s:GetGlobalSetting ( varname, ... )
 	let lname = a:varname
 	let gname = a:0 >= 1 ? a:1 : lname
 	if exists ( 'g:'.gname )
 		let { 's:'.lname } = { 'g:'.gname }
 	endif
-endfunction   " ---------- end of function  s:GetGlobalSetting  ----------
+endfunction    " ----------  end of function s:GetGlobalSetting  ----------
+
+"-------------------------------------------------------------------------------
+" s:ImportantMsg : Print an important message.   {{{2
 "
-"------------------------------------------------------------------------------
+" Parameters:
+"   line1 - a line (string)
+"   line2 - a line (string)
+"   ...   - ...
+" Returns:
+"   -
+"-------------------------------------------------------------------------------
+
+function! s:ImportantMsg ( ... )
+	echohl Search
+	echo join ( a:000, "\n" )
+	echohl None
+endfunction    " ----------  end of function s:ImportantMsg  ----------
+
+"-------------------------------------------------------------------------------
+" s:SID : Return the <SID>.   {{{2
 "
-" Platform specific items:   {{{1
-" - plugin directory
-" - characters that must be escaped for filenames
+" Parameters:
+"   -
+" Returns:
+"   SID - the SID of the script (string)
+"-------------------------------------------------------------------------------
+
+function! s:SID ()
+	return matchstr ( expand('<sfile>'), '<SNR>\zs\d\+\ze_SID$' )
+endfunction    " ----------  end of function s:SID  ----------
+
+"-------------------------------------------------------------------------------
+" s:UserInput : Input after a highlighted prompt.   {{{2
 "
-let s:MSWIN = has("win16") || has("win32")   || has("win64")    || has("win95")
-let s:UNIX	= has("unix")  || has("macunix") || has("win32unix")
+" Parameters:
+"   prompt - the prompt (string)
+"   text - the default input (string)
+"   compl - completion (string, optional)
+"   clist - list, if 'compl' is "customlist" (list, optional)
+" Returns:
+"   input - the user input, an empty sting if the user hit <ESC> (string)
+"-------------------------------------------------------------------------------
+
+function! s:UserInput ( prompt, text, ... )
+
+	echohl Search                                         " highlight prompt
+	call inputsave()                                      " preserve typeahead
+	if a:0 == 0 || a:1 == ''
+		let retval = input( a:prompt, a:text )
+	elseif a:1 == 'customlist'
+		let s:UserInputList = a:2
+		let retval = input( a:prompt, a:text, 'customlist,<SNR>'.s:SID().'_UserInputEx' )
+		let s:UserInputList = []
+	else
+		let retval = input( a:prompt, a:text, a:1 )
+	endif
+	call inputrestore()                                   " restore typeahead
+	echohl None                                           " reset highlighting
+
+	let retval  = substitute( retval, '^\s\+', "", "" )   " remove leading whitespaces
+	let retval  = substitute( retval, '\s\+$', "", "" )   " remove trailing whitespaces
+
+	return retval
+
+endfunction    " ----------  end of function s:UserInput ----------
+
+"-------------------------------------------------------------------------------
+" s:UserInputEx : ex-command for s:UserInput.   {{{3
+"-------------------------------------------------------------------------------
+function! s:UserInputEx ( ArgLead, CmdLine, CursorPos )
+	if empty( a:ArgLead )
+		return copy( s:UserInputList )
+	endif
+	return filter( copy( s:UserInputList ), 'v:val =~ ''\V\<'.escape(a:ArgLead,'\').'\w\*''' )
+endfunction    " ----------  end of function s:UserInputEx  ----------
+" }}}3
+"-------------------------------------------------------------------------------
+
+"-------------------------------------------------------------------------------
+" s:WarningMsg : Print a warning/error message.   {{{2
 "
+" Parameters:
+"   line1 - a line (string)
+"   line2 - a line (string)
+"   ...   - ...
+" Returns:
+"   -
+"-------------------------------------------------------------------------------
+
+function! s:WarningMsg ( ... )
+	echohl WarningMsg
+	echo join ( a:000, "\n" )
+	echohl None
+endfunction    " ----------  end of function s:WarningMsg  ----------
+
+" }}}2
+"-------------------------------------------------------------------------------
+
+"-------------------------------------------------------------------------------
+" === Module setup ===   {{{1
+"-------------------------------------------------------------------------------
+
+"-------------------------------------------------------------------------------
+" == Platform specific items ==   {{{2
+"-------------------------------------------------------------------------------
+
+let s:MSWIN = has("win16") || has("win32")   || has("win64")     || has("win95")
+let s:UNIX  = has("unix")  || has("macunix") || has("win32unix")
+
 let s:Perl_Executable         = ''                     " the Perl interpreter used
 let s:Perl_Perl_is_executable = 0                      " the Perl interpreter used
 let g:Perl_Installation				= '*undefined*'
@@ -114,12 +259,12 @@ let s:Perl_CustomTemplateFile = ''              " the custom templates
 let g:Perl_FilenameEscChar 		= ''
 "
 let s:Perl_ToolboxDir					= []
-"
-if  s:MSWIN
-  " ==========  MS Windows  ======================================================
-	"
+
+if s:MSWIN
+	" ==========  MS Windows  ======================================================
+
 	let g:Perl_PluginDir = substitute( expand('<sfile>:p:h:h'), '\', '/', 'g' )
-	"
+
 	" change '\' to '/' to avoid interpretation as escape character
 	if match(	substitute( expand("<sfile>"), '\', '/', 'g' ),
 				\		substitute( expand("$HOME"),   '\', '/', 'g' ) ) == 0
@@ -138,15 +283,15 @@ if  s:MSWIN
 					\	g:Perl_PluginDir.'/autoload/mmtoolbox/',
 					\	$HOME.'/vimfiles/autoload/mmtoolbox/' ]
 	end
-	"
+
 	let s:Perl_Executable           = 'C:/Perl/bin/perl.exe'
   let g:Perl_FilenameEscChar      = ''
-	"
+
 else
-  " ==========  Linux/Unix  ======================================================
-	"
+	" ==========  Linux/Unix  ======================================================
+
 	let g:Perl_PluginDir = expand("<sfile>:p:h:h")
-	"
+
 	if match( expand("<sfile>"), resolve( expand("$HOME") ) ) == 0
 		" USER INSTALLATION ASSUMED
 		let g:Perl_Installation				= 'local'
@@ -163,32 +308,41 @@ else
 					\	g:Perl_PluginDir.'/autoload/mmtoolbox/',
 					\	$HOME.'/.vim/autoload/mmtoolbox/' ]
 	endif
-	"
+
 	let s:Perl_Executable           = '/usr/bin/perl'
   let g:Perl_FilenameEscChar      = ' \%#[]'
-	"
+
   " ==============================================================================
 endif
-"
+
 " g:Perl_CodeSnippets is used in autoload/perlsupportgui.vim
-"
 let s:Perl_CodeSnippets  				= g:Perl_PluginDir.'/perl-support/codesnippets/'
 call s:ApplyDefaultSetting( 'Perl_CodeSnippets', s:Perl_CodeSnippets )
-"
-"
+
+"-------------------------------------------------------------------------------
+" == Various settings ==   {{{2
+"-------------------------------------------------------------------------------
+
 call s:ApplyDefaultSetting( 'Perl_PerlTags', 'off' )
+
+"-------------------------------------------------------------------------------
+" Use of dictionaries   {{{3
 "
+" - keyword completion is enabled by the function 's:CreateAdditionalMaps' below
+"-------------------------------------------------------------------------------
+
 if !exists("g:Perl_Dictionary_File")
-  let g:Perl_Dictionary_File       = g:Perl_PluginDir.'/perl-support/wordlists/perl.list'
+	let g:Perl_Dictionary_File = g:Perl_PluginDir.'/perl-support/wordlists/perl.list'
 endif
-"
-"
-"  Modul global variables (with default values) which can be overridden.     {{{1
-"
+
+"-------------------------------------------------------------------------------
+" User configurable options   {{{3
+"-------------------------------------------------------------------------------
+
 let s:Perl_LoadMenus             = 'yes'        " display the menus ?
-let s:Perl_TemplateOverriddenMsg = 'no'
-let s:Perl_Ctrl_j								 = 'on'
-"
+let s:Perl_Ctrl_j                = 'yes'
+let s:Perl_Ctrl_d                = 'yes'
+
 let s:Perl_TimestampFormat       = '%Y%m%d.%H%M%S'
 
 let s:Perl_PerlModuleList        = g:Perl_PluginDir.'/perl-support/modules/perl-modules.list'
@@ -205,8 +359,6 @@ let s:Perl_GuiSnippetBrowser     = 'gui'										" gui / commandline
 let s:Perl_CreateMenusDelayed    = 'yes'
 let s:Perl_DirectRun             = 'no'
 
-let s:Xterm_Executable           = 'xterm'
-
 let s:Perl_InsertFileHeader			   = 'yes'
 let s:Perl_Wrapper                 = g:Perl_PluginDir.'/perl-support/scripts/wrapper.sh'
 let s:Perl_PerlModuleListGenerator = g:Perl_PluginDir.'/perl-support/scripts/pmdesc3.pl'
@@ -218,10 +370,10 @@ let s:Perl_RootMenu								= '&Perl'
 let s:Perl_AdditionalTemplates    = mmtemplates#config#GetFt ( 'perl' )
 let s:Perl_UseToolbox             = 'yes'
 call s:ApplyDefaultSetting ( 'Perl_UseTool_make',    'yes' )
-"
-"------------------------------------------------------------------------------
 
-" look for global variables (if any), to override the defaults
+"-------------------------------------------------------------------------------
+" Get user configuration   {{{3
+"-------------------------------------------------------------------------------
 
 call s:GetGlobalSetting('Perl_Executable','Perl_Perl')
 call s:GetGlobalSetting('Perl_Executable')
@@ -229,6 +381,7 @@ call s:GetGlobalSetting('Perl_DirectRun')
 call s:GetGlobalSetting('Perl_InsertFileHeader')
 call s:GetGlobalSetting('Perl_CreateMenusDelayed')
 call s:GetGlobalSetting('Perl_Ctrl_j')
+call s:GetGlobalSetting('Perl_Ctrl_d')
 call s:GetGlobalSetting('Perl_Debugger')
 call s:GetGlobalSetting('Perl_GlobalTemplateFile')
 call s:GetGlobalSetting('Perl_LocalTemplateFile')
@@ -247,7 +400,6 @@ call s:GetGlobalSetting('Perl_PerltidyBackup')
 call s:GetGlobalSetting('Perl_PodcheckerWarnings')
 call s:GetGlobalSetting('Perl_Printheader')
 call s:GetGlobalSetting('Perl_ProfilerTimestamp')
-call s:GetGlobalSetting('Perl_TemplateOverriddenMsg')
 call s:GetGlobalSetting('Perl_TimestampFormat')
 call s:GetGlobalSetting('Perl_UseToolbox')
 
@@ -256,9 +408,12 @@ call s:GetGlobalSetting('Perl_UseToolbox')
 call s:ApplyDefaultSetting( "Perl_OutputGvim",'vim' )
 call s:ApplyDefaultSetting( "Perl_PerlRegexSubstitution",'$~' )
 
-" xterm
+"-------------------------------------------------------------------------------
+" Xterm   {{{3
+"-------------------------------------------------------------------------------
 
-let s:Perl_XtermDefaults = "-fa courier -fs 12 -geometry 80x24"
+let s:Xterm_Executable   = 'xterm'
+let s:Perl_XtermDefaults = '-fa courier -fs 12 -geometry 80x24'
 
 " check 'g:Perl_XtermDefaults' for backwards compatibility
 if ! exists ( 'g:Xterm_Options' )
@@ -272,8 +427,11 @@ endif
 call s:GetGlobalSetting ( 'Xterm_Executable' )
 call s:ApplyDefaultSetting ( 'Xterm_Options', s:Perl_XtermDefaults )
 
-" flags for perldoc
+"-------------------------------------------------------------------------------
+" Control variables (not user configurable)   {{{3
+"-------------------------------------------------------------------------------
 
+" flags for perldoc
 if has("gui_running")
   let s:Perl_perldoc_flags  = ""
 else
@@ -288,10 +446,6 @@ let s:Perl_Printheader = escape( s:Perl_Printheader, ' %' )
 let s:Perl_Perl_is_executable = executable(s:Perl_Executable)
 let s:Perl_InterfaceVersion   = ''
 
-"------------------------------------------------------------------------------
-"  Control variables (not user configurable)
-"------------------------------------------------------------------------------
-"
 let s:Perl_MenuVisible 						= 'no'
 let s:Perl_TemplateJumpTarget 		= ''
 
@@ -302,30 +456,13 @@ let s:Perl_saved_global_option		= {}
 "
 let s:PCseverityName	= [ "DUMMY", "brutal", "cruel", "harsh", "stern", "gentle" ]
 let s:PCverbosityName	= [ '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11' ]
-"
-"===  FUNCTION  ================================================================
-"          NAME:  Perl_Input     {{{1
-"   DESCRIPTION:  Input after a highlighted prompt
-"    PARAMETERS:  prompt - prompt
-"                 text   - default reply
-"                 ...    - completion (optional)
-"       RETURNS:
-"===============================================================================
-function! Perl_Input ( prompt, text, ... )
-	echohl Search																					" highlight prompt
-	call inputsave()																			" preserve typeahead
-	if a:0 == 0 || empty(a:1)
-		let retval	=input( a:prompt, a:text )
-	else
-		let retval	=input( a:prompt, a:text, a:1 )
-	endif
-	call inputrestore()																		" restore typeahead
-	echohl None																						" reset highlighting
-	let retval  = substitute( retval, '^\s\+', "", "" )		" remove leading whitespaces
-	let retval  = substitute( retval, '\s\+$', "", "" )		" remove trailing whitespaces
-	return retval
-endfunction    " ----------  end of function Perl_Input ----------
-"
+
+" }}}3
+"-------------------------------------------------------------------------------
+
+" }}}2
+"-------------------------------------------------------------------------------
+
 "------------------------------------------------------------------------------
 "  Perl_SaveGlobalOption    {{{1
 "  param 1 : option name
@@ -357,7 +494,7 @@ function! Perl_GetLineEndCommCol ()
   if actcol+1 == virtcol("$")
     let b:Perl_LineEndCommentColumn = ''
 		while match( b:Perl_LineEndCommentColumn, '^\s*\d\+\s*$' ) < 0
-			let b:Perl_LineEndCommentColumn = Perl_Input( 'start line-end comment at virtual column : ', actcol, '' )
+			let b:Perl_LineEndCommentColumn = s:UserInput( 'start line-end comment at virtual column : ', actcol, '' )
 		endwhile
   else
     let b:Perl_LineEndCommentColumn = virtcol(".")
@@ -741,7 +878,7 @@ function! Perl_perldoc()
 		let cuc		= getline(".")[col(".") - 1]	" character under the cursor
     let item	= expand("<cword>")       		" word under the cursor
 		if empty(item) || match( item, cuc ) == -1
-			let item=Perl_Input("perldoc - module, function or FAQ keyword : ", "", '')
+			let item = s:UserInput("perldoc - module, function or FAQ keyword : ", '', '')
 		endif
   endif
 
@@ -1366,10 +1503,10 @@ function! Perl_XtermSize ()
   let geom  = matchstr( g:Xterm_Options, regex )
   let geom  = matchstr( geom, '\d\+x\d\+' )
   let geom  = substitute( geom, 'x', ' ', "" )
-  let answer= Perl_Input("   xterm size (COLUMNS LINES) : ", geom )
-  while match(answer, '^\s*\d\+\s\+\d\+\s*$' ) < 0
-    let answer= Perl_Input(" + xterm size (COLUMNS LINES) : ", geom )
-  endwhile
+	let answer = s:UserInput( "   xterm size (COLUMNS LINES) : ", geom )
+	while match(answer, '^\s*\d\+\s\+\d\+\s*$' ) < 0
+		let answer = s:UserInput( " + xterm size (COLUMNS LINES) : ", geom )
+	endwhile
   let answer  = substitute( answer, '\s\+', "x", "" )           " replace inner whitespaces
   let g:Xterm_Options  = substitute( g:Xterm_Options, regex, "-geometry ".answer , "" )
 endfunction   " ---------- end of function  Perl_XtermSize  ----------
@@ -1386,7 +1523,7 @@ function! Perl_MakeScriptExecutable ()
 		"
 		" not executable -> executable
 		"
-		if Perl_Input( '"'.filename.'" NOT executable. Make it executable [y/n] : ', 'y' ) == 'y'
+		if s:UserInput( '"'.filename.'" NOT executable. Make it executable [y/n] : ', 'y' ) == 'y'
 			silent exe "!chmod u+x ".shellescape(filename)
 			if v:shell_error
 				" confirmation for the user
@@ -1407,7 +1544,7 @@ function! Perl_MakeScriptExecutable ()
 		"
 		" executable -> not executable
 		"
-		if Perl_Input( '"'.filename.'" is executable. Make it NOT executable [y/n] : ', 'y' ) == 'y'
+		if s:UserInput( '"'.filename.'" is executable. Make it NOT executable [y/n] : ', 'y' ) == 'y'
 			" reset all execution bits
 			silent exe "!chmod  -x ".shellescape(filename)
 			if v:shell_error
@@ -1507,61 +1644,6 @@ function! Perl_POD ( format )
 endfunction   " ---------- end of function  Perl_POD  ----------
 
 "===  FUNCTION  ================================================================
-"          NAME:  Perl_OpenFold     {{{1
-"   DESCRIPTION:  Open fold and go to the first or last line of this fold
-"    PARAMETERS:  mode - below / start
-"       RETURNS:
-"===============================================================================
-function! Perl_OpenFold ( mode )
-	if foldclosed(".") >= 0
-		" we are on a closed  fold: get end position, open fold, jump to the
-		" last line of the previously closed fold
-		let	foldstart	= foldclosed(".")
-		let	foldend		= foldclosedend(".")
-		normal! zv
-		if a:mode == 'below'
-			exe ":".foldend
-		endif
-		if a:mode == 'start'
-			exe ":".foldstart
-		endif
-	endif
-endfunction    " ----------  end of function Perl_OpenFold  ----------
-
-"===  FUNCTION  ================================================================
-"          NAME:  Perl_HighlightJumpTargets     {{{1
-"   DESCRIPTION:  highlight the jump targets
-"    PARAMETERS:  -
-"       RETURNS:
-"===============================================================================
-function! Perl_HighlightJumpTargets ()
-	if s:Perl_Ctrl_j == 'on'
-		exe 'match Search /'.s:Perl_TemplateJumpTarget.'/'
-	endif
-endfunction    " ----------  end of function Perl_HighlightJumpTargets  ----------
-
-"===  FUNCTION  ================================================================
-"          NAME:  Perl_JumpCtrlJ     {{{1
-"   DESCRIPTION:  replaces the template system function for C-j
-"    PARAMETERS:  -
-"       RETURNS:
-"===============================================================================
-function! Perl_JumpCtrlJ ()
-  let match	= search( s:Perl_TemplateJumpTarget, 'c' )
-	if match > 0
-		" remove the target
-		call setline( match, substitute( getline('.'), s:Perl_TemplateJumpTarget, '', '' ) )
-	else
-		" try to jump behind parenthesis or strings in the current line
-		if match( getline(".")[col(".") - 1], "[\]})\"'`]"  ) != 0
-			call search( "[\]})\"'`]", '', line(".") )
-		endif
-		normal! l
-	endif
-	return ''
-endfunction    " ----------  end of function Perl_JumpCtrlJ  ----------
-
-"===  FUNCTION  ================================================================
 "          NAME:  s:CheckPerltidy   {{{1
 "   DESCRIPTION:  check whether perltidy(1) is executable and correctly set up
 "    PARAMETERS:  -
@@ -1627,13 +1709,13 @@ function! Perl_Perltidy (mode)
 		return
 	endif
 
-  " ----- normal mode ----------------
-  if a:mode=="n"
-    if Perl_Input("reformat whole file [y/n/Esc] : ", "y", '' ) != "y"
-      return
-    endif
-    if s:Perl_PerltidyBackup == 'yes'
-    	exe ':write! '.Sou.'.bak'
+	" ----- normal mode ----------------
+	if a:mode == "n"
+		if s:UserInput( "reformat whole file [y/n/Esc] : ", "y", '' ) != "y"
+			return
+		endif
+		if s:Perl_PerltidyBackup == 'yes'
+			exe 'write! '.Sou.'.bak'
 		endif
     silent exe  ":update"
     let pos1  = line(".")
@@ -2023,7 +2105,7 @@ function! Perl_CreateGuiMenus ()
 		aunmenu <silent> &Tools.Load\ Perl\ Support
     amenu   <silent> 40.1000 &Tools.-SEP100- :
     amenu   <silent> 40.1160 &Tools.Unload\ Perl\ Support :call Perl_RemoveGuiMenus()<CR>
-		call s:Perl_RereadTemplates()
+		call s:RereadTemplates()
 		call s:Perl_InitMenus ()
     let s:Perl_MenuVisible = 'yes'
   endif
@@ -2051,14 +2133,15 @@ function! Perl_ResetMapLeader ()
 	endif
 endfunction    " ----------  end of function Perl_ResetMapLeader  ----------
 " }}}2
+"------------------------------------------------------------------------------
+
+"-------------------------------------------------------------------------------
+" s:RereadTemplates : Initial loading of the templates.   {{{1
 "
-"===  FUNCTION  ================================================================
-"          NAME:  Perl_RereadTemplates     {{{1
-"   DESCRIPTION:  rebuild commands and the menu from the (changed) template file
-"    PARAMETERS:  -
-"       RETURNS:
-"===============================================================================
-function! s:Perl_RereadTemplates ()
+" Reread the templates. Also set the character which starts the comments in
+" the template files.
+"-------------------------------------------------------------------------------
+function! s:RereadTemplates ()
 	"
 	"-------------------------------------------------------------------------------
 	" setup template library
@@ -2087,7 +2170,13 @@ function! s:Perl_RereadTemplates ()
 	"
 	" syntax: comments
 	call mmtemplates#core#ChangeSyntax ( g:Perl_Templates, 'comment', '§' )
-	"
+
+	" property: file skeletons (use safe defaults here, more sensible settings are applied in the template library)
+	call mmtemplates#core#Resource ( g:Perl_Templates, 'add', 'property', 'Perl::FileSkeleton::Script', 'Comments.file description pl' )
+	call mmtemplates#core#Resource ( g:Perl_Templates, 'add', 'property', 'Perl::FileSkeleton::Module', 'Comments.file description pm' )
+	call mmtemplates#core#Resource ( g:Perl_Templates, 'add', 'property', 'Perl::FileSkeleton::Test',   'Comments.file description t' )
+	call mmtemplates#core#Resource ( g:Perl_Templates, 'add', 'property', 'Perl::FileSkeleton::POD',    '' )
+
 	"-------------------------------------------------------------------------------
 	" load template library
 	"-------------------------------------------------------------------------------
@@ -2127,38 +2216,111 @@ function! s:Perl_RereadTemplates ()
 	" get the jump target for <CTRL-J>
 	let s:Perl_TemplateJumpTarget = mmtemplates#core#Resource ( g:Perl_Templates, "jumptag" )[0]
 	"
-endfunction    " ----------  end of function s:Perl_RereadTemplates  ----------
+endfunction    " ----------  end of function s:RereadTemplates  ----------
+
+"-------------------------------------------------------------------------------
+" s:CheckTemplatePersonalization : Check template personalization.   {{{1
 "
-"===  FUNCTION  ================================================================
-"          NAME:  s:CheckTemplatePersonalization     {{{1
-"   DESCRIPTION:  check whether the name, .. has been set
-"    PARAMETERS:  -
-"       RETURNS:
-"===============================================================================
+" Check whether the |AUTHOR| has been set in the template library.
+" If not, display help on how to set up the template personalization.
+"-------------------------------------------------------------------------------
 let s:DoneCheckTemplatePersonalization = 0
-"
+
 function! s:CheckTemplatePersonalization ()
-	"
+
 	" check whether the templates are personalized
-	if ! s:DoneCheckTemplatePersonalization
-				\ && mmtemplates#core#ExpandText ( g:Perl_Templates, '|AUTHOR|' ) == 'YOUR NAME'
-		let s:DoneCheckTemplatePersonalization = 1
-		"
-		let maplead = mmtemplates#core#Resource ( g:Perl_Templates, 'get', 'property', 'Templates::Mapleader' )[0]
-		"
-		redraw
-		echohl Search
-		echo 'The personal details (name, mail, ...) are not set in the template library.'
-		echo 'They are used to generate comments, ...'
-		echo 'To set them, start the setup wizard using:'
-		echo '- use the menu entry "Perl -> Snippets -> template setup wizard"'
-		echo '- use the map "'.maplead.'ntw" inside a Perl buffer'
-		echo "\n"
-		echohl None
+	if s:DoneCheckTemplatePersonalization
+				\ || mmtemplates#core#ExpandText ( g:Perl_Templates, '|AUTHOR|' ) != 'YOUR NAME'
+				\ || s:Perl_InsertFileHeader != 'yes'
+		return
 	endif
-	"
+
+	let s:DoneCheckTemplatePersonalization = 1
+
+	let maplead = mmtemplates#core#Resource ( g:Perl_Templates, 'get', 'property', 'Templates::Mapleader' )[0]
+
+	redraw
+	call s:ImportantMsg ( 'The personal details are not set in the template library. Use the map "'.maplead.'ntw".' )
+
 endfunction    " ----------  end of function s:CheckTemplatePersonalization  ----------
+
+"-------------------------------------------------------------------------------
+" s:CheckAndRereadTemplates : Make sure the templates are loaded.   {{{1
+"-------------------------------------------------------------------------------
+function! s:CheckAndRereadTemplates ()
+	if ! exists ( 'g:Perl_Templates' )
+		call s:RereadTemplates()
+	endif
+endfunction    " ----------  end of function s:CheckAndRereadTemplates  ----------
+
+"-------------------------------------------------------------------------------
+" s:InsertFileHeader : Insert a file header.   {{{1
 "
+" The type must be one for which a property exists:
+"   Perl::FileSkeleton::<script_type>
+"
+" Parameters:
+"   script_type - type (string)
+"-------------------------------------------------------------------------------
+function! s:InsertFileHeader ( script_type )
+	call s:CheckAndRereadTemplates()
+
+	" prevent insertion for a file generated from a some error
+	if isdirectory(expand('%:p:h')) && s:Perl_InsertFileHeader == 'yes'
+		let templ_s = mmtemplates#core#Resource ( g:Perl_Templates, 'get', 'property', 'Perl::FileSkeleton::'.a:script_type )[0]
+
+		" insert templates in reverse order, always above the first line
+		" the last one to insert (the first in the list), will determine the
+		" placement of the cursor
+		let templ_l = split ( templ_s, ';' )
+		for i in range ( len(templ_l)-1, 0, -1 )
+			exe 1
+			if -1 != match ( templ_l[i], '^\s\+$' )
+				put! =''
+			else
+				call mmtemplates#core#InsertTemplate ( g:Perl_Templates, templ_l[i], 'placement', 'above' )
+			endif
+		endfor
+		if len(templ_l) > 0
+			set modified
+		endif
+	endif
+endfunction    " ----------  end of function s:InsertFileHeader  ----------
+
+"-------------------------------------------------------------------------------
+" s:HighlightJumpTargets : Highlight the jump targets.   {{{1
+"-------------------------------------------------------------------------------
+function! s:HighlightJumpTargets ()
+	if s:Perl_Ctrl_j == 'yes'
+		exe 'match Search /'.s:Perl_TemplateJumpTarget.'/'
+	endif
+endfunction    " ----------  end of function s:HighlightJumpTargets  ----------
+
+"-------------------------------------------------------------------------------
+" s:JumpForward : Jump to the next target.   {{{1
+"
+" If no target is found, jump behind the current string
+"
+" Parameters:
+"   -
+" Returns:
+"   empty sting
+"-------------------------------------------------------------------------------
+function! s:JumpForward ()
+	let match = search( s:Perl_TemplateJumpTarget, 'c' )
+	if match > 0
+		" remove the target
+		call setline( match, substitute( getline('.'), s:Perl_TemplateJumpTarget, '', '' ) )
+	else
+		" try to jump behind parenthesis or strings in the current line
+		if match( getline(".")[col(".") - 1], "[\]})\"'`]"  ) != 0
+			call search( "[\]})\"'`]", '', line(".") )
+		endif
+		normal! l
+	endif
+	return ''
+endfunction    " ----------  end of function s:JumpForward  ----------
+
 "------------------------------------------------------------------------------
 "  Check the perlcritic default severity and verbosity.
 "------------------------------------------------------------------------------
@@ -2521,19 +2683,17 @@ INITIALIZE_PERL_INTERFACE
 		endif
 	endif
 endfunction    " ----------  end of function Perl_InitializePerlInterface  ----------
-"
-"===  FUNCTION  ================================================================
-"          NAME:  CreateAdditionalMaps     {{{1
-"   DESCRIPTION:  create additional maps
-"    PARAMETERS:  -
-"       RETURNS:
-"===============================================================================
+
+"-------------------------------------------------------------------------------
+" s:CreateAdditionalMaps : Create additional maps.   {{{1
+"-------------------------------------------------------------------------------
 function! s:CreateAdditionalMaps ()
-	"
+
+	" we allow this, since the default is 'off'
 	if exists('g:Perl_Perltidy') && g:Perl_Perltidy == 'on' && executable("perltidy")
 		setlocal equalprg='perltidy'
 	endif
-	"
+
 	" ---------- Perl dictionary -------------------------------------------------
 	" This will enable keyword completion for Perl
 	" using Vim's dictionary feature |i_CTRL-X_CTRL-K|.
@@ -2785,16 +2945,17 @@ function! s:CreateAdditionalMaps ()
 	"-------------------------------------------------------------------------------
 	" templates
 	"-------------------------------------------------------------------------------
-	"
-	if s:Perl_Ctrl_j == 'on'
-		nnoremap    <buffer>  <silent>  <C-j>       i<C-R>=Perl_JumpCtrlJ()<CR>
-		inoremap    <buffer>  <silent>  <C-j>  <C-g>u<C-R>=Perl_JumpCtrlJ()<CR>
+	if s:Perl_Ctrl_j == 'yes' || s:Perl_Ctrl_j == 'on'
+		nnoremap    <buffer>  <silent>  <C-j>       i<C-R>=<SID>JumpForward()<CR>
+		inoremap    <buffer>  <silent>  <C-j>  <C-g>u<C-R>=<SID>JumpForward()<CR>
 	endif
-	"
-	" ----------------------------------------------------------------------------
-	"
-	call mmtemplates#core#CreateMaps ( 'g:Perl_Templates', g:Perl_MapLeader, 'do_special_maps', 'do_del_opt_map' ) |
-	"
+
+	if s:Perl_Ctrl_d == 'yes'
+		call mmtemplates#core#CreateMaps ( 'g:Perl_Templates', g:Perl_MapLeader, 'do_special_maps', 'do_del_opt_map' )
+	else
+		call mmtemplates#core#CreateMaps ( 'g:Perl_Templates', g:Perl_MapLeader, 'do_special_maps' )
+	endif
+
 	" ----------------------------------------------------------------------------
 	"  Generate (possibly exuberant) Ctags style tags for Perl sourcecode.
 	"  Controlled by g:Perl_PerlTags, disabled by default.
@@ -2837,14 +2998,14 @@ endif
 	"
 endfunction    " ----------  end of function s:CreateAdditionalMaps  ----------
 
-"===============================================================================
-"
-" Plug-in setup:  {{{1
-"
+"-------------------------------------------------------------------------------
+" === Setup: Templates, toolbox and menus ===   {{{1
+"-------------------------------------------------------------------------------
+
 "------------------------------------------------------------------------------
 "  setup the toolbox
 "------------------------------------------------------------------------------
-"
+
 if s:Perl_UseToolbox == 'yes'
 	"
 	let s:Perl_Toolbox = mmtoolbox#tools#NewToolbox ( 'Perl' )
@@ -2872,7 +3033,7 @@ if has("autocmd")
 				\	if ( &filetype == 'perl' || &filetype == 'pod') |
 				\		if ! exists( 'g:Perl_Templates' ) |
 				\			if s:Perl_LoadMenus == 'yes' | call Perl_CreateGuiMenus ()    |
-				\			else                         | call s:Perl_RereadTemplates () |
+				\			else                         | call s:RereadTemplates () |
 				\			endif |
 				\		endif |
 				\		call s:CreateAdditionalMaps() |
@@ -2881,15 +3042,16 @@ if has("autocmd")
 	"
 	autocmd BufNewFile,BufRead *.pod  setlocal  syntax=perl
   autocmd BufNewFile,BufRead *.t    setlocal  filetype=perl
-	"
+
 	if s:Perl_InsertFileHeader == 'yes'
-		autocmd BufNewFile  *.pl  call mmtemplates#core#InsertTemplate(g:Perl_Templates, 'Comments.file description pl')
-		autocmd BufNewFile  *.pm  call mmtemplates#core#InsertTemplate(g:Perl_Templates, 'Comments.file description pm')
-		autocmd BufNewFile  *.t   call mmtemplates#core#InsertTemplate(g:Perl_Templates, 'Comments.file description t')
+		autocmd BufNewFile  *.pl   call s:InsertFileHeader('Script')
+		autocmd BufNewFile  *.pm   call s:InsertFileHeader('Module')
+		autocmd BufNewFile  *.t    call s:InsertFileHeader('Test')
+		autocmd BufNewFile  *.pod  call s:InsertFileHeader('POD')
 	endif
 
 	autocmd BufNew   *.pl,*.pm,*.t,*.pod  call Perl_InitializePerlInterface()
-	autocmd BufRead  *.pl,*.pm,*.t,*.pod  call Perl_HighlightJumpTargets()
+	autocmd BufRead  *.pl,*.pm,*.t,*.pod  call s:HighlightJumpTargets()
   "
   " Wrap error descriptions in the quickfix window.
   autocmd BufReadPost quickfix  setlocal wrap | setlocal linebreak
@@ -2897,5 +3059,8 @@ if has("autocmd")
 	exe 'autocmd BufNewFile,BufReadPost  '.s:Perl_PerlModuleList.' setlocal foldmethod=expr | setlocal foldexpr=Perl_ModuleListFold(v:lnum)'
 	"
 endif
-"
+" }}}1
+"-------------------------------------------------------------------------------
+
+" =====================================================================================
 " vim: tabstop=2 shiftwidth=2 foldmethod=marker

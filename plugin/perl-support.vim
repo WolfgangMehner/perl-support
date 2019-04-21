@@ -39,9 +39,9 @@
 "
 "        Version:  see variable  g:Perl_PluginVersion  below
 "        Created:  09.07.2001
-"       Revision:  12.02.2017
+"       Revision:  21.04.2019
 "        License:  Copyright (c) 2001-2014, Fritz Mehner
-"                  Copyright (c) 2015-2017, Wolfgang Mehner
+"                  Copyright (c) 2015-2019, Wolfgang Mehner
 "                  This program is free software; you can redistribute it
 "                  and/or modify it under the terms of the GNU General Public
 "                  License as published by the Free Software Foundation,
@@ -282,7 +282,7 @@ if s:MSWIN
 		let s:Perl_ToolboxDir				 += [
 					\	g:Perl_PluginDir.'/autoload/mmtoolbox/',
 					\	$HOME.'/vimfiles/autoload/mmtoolbox/' ]
-	end
+	endif
 
 	let s:Perl_Executable           = 'C:/Perl/bin/perl.exe'
   let g:Perl_FilenameEscChar      = ''
@@ -2219,32 +2219,6 @@ function! s:RereadTemplates ()
 endfunction    " ----------  end of function s:RereadTemplates  ----------
 
 "-------------------------------------------------------------------------------
-" s:CheckTemplatePersonalization : Check template personalization.   {{{1
-"
-" Check whether the |AUTHOR| has been set in the template library.
-" If not, display help on how to set up the template personalization.
-"-------------------------------------------------------------------------------
-let s:DoneCheckTemplatePersonalization = 0
-
-function! s:CheckTemplatePersonalization ()
-
-	" check whether the templates are personalized
-	if s:DoneCheckTemplatePersonalization
-				\ || mmtemplates#core#ExpandText ( g:Perl_Templates, '|AUTHOR|' ) != 'YOUR NAME'
-				\ || s:Perl_InsertFileHeader != 'yes'
-		return
-	endif
-
-	let s:DoneCheckTemplatePersonalization = 1
-
-	let maplead = mmtemplates#core#Resource ( g:Perl_Templates, 'get', 'property', 'Templates::Mapleader' )[0]
-
-	redraw
-	call s:ImportantMsg ( 'The personal details are not set in the template library. Use the map "'.maplead.'ntw".' )
-
-endfunction    " ----------  end of function s:CheckTemplatePersonalization  ----------
-
-"-------------------------------------------------------------------------------
 " s:CheckAndRereadTemplates : Make sure the templates are loaded.   {{{1
 "-------------------------------------------------------------------------------
 function! s:CheckAndRereadTemplates ()
@@ -2999,6 +2973,18 @@ endif
 endfunction    " ----------  end of function s:CreateAdditionalMaps  ----------
 
 "-------------------------------------------------------------------------------
+" s:Initialize : Initialize templates, menus, and maps.   {{{1
+"-------------------------------------------------------------------------------
+function! s:Initialize ( ftype )
+	if ! exists( 'g:Perl_Templates' )
+		if s:Perl_LoadMenus == 'yes' | call Perl_CreateGuiMenus()
+		else                         | call s:RereadTemplates()
+		endif
+	endif
+	call s:CreateAdditionalMaps()
+endfunction    " ----------  end of function s:Initialize  ----------
+
+"-------------------------------------------------------------------------------
 " === Setup: Templates, toolbox and menus ===   {{{1
 "-------------------------------------------------------------------------------
 
@@ -3028,36 +3014,28 @@ endif
 "  Automated header insertion
 "------------------------------------------------------------------------------
 if has("autocmd")
-	"
-	autocmd FileType *
-				\	if ( &filetype == 'perl' || &filetype == 'pod') |
-				\		if ! exists( 'g:Perl_Templates' ) |
-				\			if s:Perl_LoadMenus == 'yes' | call Perl_CreateGuiMenus ()    |
-				\			else                         | call s:RereadTemplates () |
-				\			endif |
-				\		endif |
-				\		call s:CreateAdditionalMaps() |
-				\		call s:CheckTemplatePersonalization() |
-				\	endif
-	"
-	autocmd BufNewFile,BufRead *.pod  setlocal  syntax=perl
-  autocmd BufNewFile,BufRead *.t    setlocal  filetype=perl
+	augroup PerlSupport
 
-	if s:Perl_InsertFileHeader == 'yes'
-		autocmd BufNewFile  *.pl   call s:InsertFileHeader('Script')
-		autocmd BufNewFile  *.pm   call s:InsertFileHeader('Module')
-		autocmd BufNewFile  *.t    call s:InsertFileHeader('Test')
-		autocmd BufNewFile  *.pod  call s:InsertFileHeader('POD')
-	endif
+	" create menus and maps
+	autocmd FileType perl  call s:Initialize('perl')
+	autocmd FileType pod   call s:Initialize('pod')
 
-	autocmd BufNew   *.pl,*.pm,*.t,*.pod  call Perl_InitializePerlInterface()
-	autocmd BufRead  *.pl,*.pm,*.t,*.pod  call s:HighlightJumpTargets()
-  "
-  " Wrap error descriptions in the quickfix window.
-  autocmd BufReadPost quickfix  setlocal wrap | setlocal linebreak
-  "
-	exe 'autocmd BufNewFile,BufReadPost  '.s:Perl_PerlModuleList.' setlocal foldmethod=expr | setlocal foldexpr=Perl_ModuleListFold(v:lnum)'
-	"
+	" insert file header
+	autocmd BufNewFile  *.pl   call s:InsertFileHeader('Script')
+	autocmd BufNewFile  *.pm   call s:InsertFileHeader('Module')
+	autocmd BufNewFile  *.t    call s:InsertFileHeader('Test')
+	autocmd BufNewFile  *.pod  call s:InsertFileHeader('POD')
+
+	" highlight jump targets after opening file
+	autocmd BufReadPost *.pl,*.pm,*.t,*.pod  call s:HighlightJumpTargets()
+
+	" initialize the Perl interface
+	autocmd FileType perl,pod  call Perl_InitializePerlInterface()
+
+	" set foldmethod and expression for file s:Perl_PerlModuleList
+	exe 'autocmd BufNewFile,BufReadPost' s:Perl_PerlModuleList 'setlocal foldmethod=expr | setlocal foldexpr=Perl_ModuleListFold(v:lnum)'
+
+	augroup END
 endif
 " }}}1
 "-------------------------------------------------------------------------------
